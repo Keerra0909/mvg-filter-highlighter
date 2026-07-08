@@ -106,8 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         const greenRooms = data.stats.super_shots_green || [];
                         const allRooms = [...new Set([...mvgRooms, ...greenRooms])].join(', ');
                         
-                        document.getElementById('stat-supershots').textContent = allRooms || superShotsCount;
-                        document.getElementById('label-supershots').textContent = `${superShotsCount} ★ Super Shots`;
+                        document.getElementById('stat-supershots').textContent = superShotsCount;
+                        document.getElementById('label-supershots').textContent = '★ Super Shots';
                         document.getElementById('supershots-details').style.display = 'block';
                         document.getElementById('ss-mvg').textContent = mvgRooms.join(', ') || 'None';
                         document.getElementById('ss-green').textContent = greenRooms.join(', ') || 'None';
