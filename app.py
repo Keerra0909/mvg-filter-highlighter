@@ -218,7 +218,13 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         is_kids_only = True
                         
                 # Check for F-Suite Candidates
-                last_name = next((w2[4].replace(',', '').strip().lower() for w2 in line_words_raw if ',' in w2[4]), None)
+                family_id = next((w2[4].replace(',', '').strip().lower() for w2 in line_words_raw if ',' in w2[4]), None)
+                if not family_id:
+                    # Fallback to the 7-9 digit reservation/confirmation number on the left side
+                    for w2 in line_words_raw:
+                        if w2[4].isdigit() and 7 <= len(w2[4]) <= 9:
+                            family_id = w2[4]
+                            break
                 room_idx = -1
                 for i, w2 in enumerate(line_words_raw):
                     if w2[0] == w[0] and w2[1] == w[1]:
@@ -232,10 +238,10 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         if line_words_raw[room_idx - 2][4].upper().startswith('F'):
                             room_type = line_words_raw[room_idx - 2][4].upper()
                             
-                if last_name and room_type.startswith('F'):
+                if family_id and room_type.startswith('F'):
                     f_suite_candidates.append({
                         'page_idx': page_num,
-                        'last_name': last_name,
+                        'family_id': family_id,
                         'y0': w[1],
                         'y1': w[3],
                         'bracket_x': w[2] + 35  # Safe distance for bracket
@@ -509,11 +515,11 @@ def highlight_pdf(pdf_path, room_data, output_path):
     page_fsuite_groups = defaultdict(lambda: defaultdict(list))
     
     for r in f_suite_candidates:
-        page_fsuite_groups[r['page_idx']][r['last_name']].append(r)
+        page_fsuite_groups[r['page_idx']][r['family_id']].append(r)
         
     for page_idx, groups in page_fsuite_groups.items():
         page = doc[page_idx]
-        for lname, rooms in groups.items():
+        for fid, rooms in groups.items():
             if len(rooms) > 1:
                 min_y = min(r['y0'] for r in rooms)
                 max_y = max(r['y1'] for r in rooms)
