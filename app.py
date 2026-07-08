@@ -1,0 +1,498 @@
+import os
+import io
+import pandas as pd
+import fitz  # PyMuPDF
+from flask import Flask, request, send_file, render_template, jsonify
+from werkzeug.utils import secure_filename
+
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max
+
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+def extract_rooms_from_excel(excel_path):
+    # Try reading the excel file without assuming row 0 is the header, and read ALL sheets
+    try:
+        dfs = pd.read_excel(excel_path, header=None, sheet_name=None)
+    except Exception as e:
+        print(f"Error reading Excel: {e}")
+        return {}
+
+    room_data = {}
+    
+    for sheet_name, df in dfs.items():
+        print(f"Processing sheet: {sheet_name}")
+        # 1. Search the first 20 rows to find the actual header row and Room column
+        header_row_idx = None
+        room_col_idx = None
+        attendance_col_idx = None
+        reason_col_idx = None
+        
+        for idx, row in df.head(20).iterrows():
+            for col_idx, val in row.items():
+                val_str = str(val).lower()
+                if 'roomnum' in val_str or 'room' in val_str:
+                    room_col_idx = col_idx
+                if 'attendance' in val_str or 'presentation' in val_str:
+                    attendance_col_idx = col_idx
+                if 'reason' in val_str:
+                    reason_col_idx = col_idx
+                    
+            if room_col_idx is not None:
+                header_row_idx = idx
+                break
+                
+        if room_col_idx is not None:
+            print(f"Found room col: {room_col_idx}, attendance col: {attendance_col_idx}, reason col: {reason_col_idx} starting from row {header_row_idx + 1}")
+            # Extract values starting from the row after the header
+            for idx_row in range(header_row_idx + 1, len(df)):
+                val = df.iloc[idx_row, room_col_idx]
+                if pd.isna(val):
+                    continue
+                try:
+                    val_str = str(val).strip()
+                    if val_str.endswith('.0'):
+                        val_str = val_str[:-2]
+                    val_str = val_str.replace(',', '')
+                    
+                    if val_str.isdigit() and len(val_str) >= 3:
+                        needs_underline = False
+                        has_certificado = False
+                        has_promo = False
+                        has_mvg = False
+                        
+                        if attendance_col_idx is not None:
+                            att_val = df.iloc[idx_row, attendance_col_idx]
+                            if pd.notna(att_val) and str(att_val).strip().lower() == 'yes':
+                                needs_underline = True
+                                
+                        if reason_col_idx is not None:
+                            reason_val = df.iloc[idx_row, reason_col_idx]
+                            if pd.notna(reason_val):
+                                reason_str = str(reason_val).lower()
+                                if 'certificado' in reason_str:
+                                    has_certificado = True
+                                if 'black' in reason_str and 'friday' in reason_str:
+                                    has_promo = True
+                                elif 'promo black' in reason_str:
+                                    has_promo = True
+                                if 'mvg' in reason_str and 'moon vacation getaway' in reason_str:
+                                    has_mvg = True
+                                    
+                                if has_certificado or has_promo or has_mvg:
+                                    print(f"Matched promo/cert/mvg for room {val_str}: {reason_str}")
+                                
+                        if val_str not in room_data:
+                            room_data[val_str] = {'underline': False, 'certificado': False, 'promo': False, 'mvg': False}
+                            
+                        if needs_underline: room_data[val_str]['underline'] = True
+                        if has_certificado: room_data[val_str]['certificado'] = True
+                        if has_promo: room_data[val_str]['promo'] = True
+                        if has_mvg: room_data[val_str]['mvg'] = True
+                except:
+                    pass
+        else:
+            print("Fallback: Scanning all cells for room numbers")
+            # Fallback: scan all cells for something that looks like a 4 or 5 digit room number
+            for col in df.columns:
+                for val in df[col].dropna():
+                    try:
+                        val_str = str(val).strip()
+                        if val_str.endswith('.0'):
+                            val_str = val_str[:-2]
+                        val_str = val_str.replace(',', '')
+                        
+                        if val_str.isdigit() and 3 <= len(val_str) <= 6:
+                            if val_str not in room_data:
+                                room_data[val_str] = {'underline': False, 'certificado': False, 'promo': False, 'mvg': False}
+                    except:
+                        pass
+                    
+    print(f"Extracted {len(room_data)} unique rooms")
+    return room_data
+
+def highlight_pdf(pdf_path, room_data, output_path):
+    doc = fitz.open(pdf_path)
+    highlight_color = (0.5, 1.0, 0.5) # Light green color
+    red_color = (1.0, 0.4, 0.4) # Light red color
+
+    total_highlights = 0
+    extracted_rooms_membership = []
+    last_grupo_x0 = None
+    last_membership_x0 = None
+    last_room_type_header_x0 = None
+    
+    for page in doc:
+        words = page.get_text("words")
+        # Find the headers, restricting to the upper half of the page to avoid footers
+        header_y_threshold = page.rect.height / 2
+        
+        # Find the x-coordinate of the "Room Type" column header
+        room_type_header_x0 = None
+        type_words = [w for w in words if "type" in w[4].lower() and w[1] < header_y_threshold]
+        if type_words:
+            room_type_header_x0 = type_words[0][0]
+            last_room_type_header_x0 = room_type_header_x0
+            print(f"Found Room Type header at x0: {room_type_header_x0}")
+        else:
+            room_type_header_x0 = last_room_type_header_x0
+            
+        # Find the x-coordinate of the standalone "Room" column header
+        room_header_x0 = None
+        room_words = [w for w in words if "room" in w[4].lower() and w[1] < header_y_threshold]
+        
+        membership_x0 = None
+        membership_words = [w for w in words if "membership" in w[4].lower() and w[1] < header_y_threshold]
+        if membership_words:
+            membership_x0 = membership_words[0][0]
+            last_membership_x0 = membership_x0
+        else:
+            membership_x0 = last_membership_x0
+            
+        grupo_x0 = None
+        grupo_words = [w for w in words if "grupo" in w[4].lower() and w[1] < header_y_threshold]
+        if grupo_words:
+            grupo_x0 = grupo_words[0][0]
+            last_grupo_x0 = grupo_x0
+        else:
+            grupo_x0 = last_grupo_x0
+        
+        standalone_rooms = []
+        for rw in room_words:
+            is_part_of_room_type = False
+            for tw in type_words:
+                # Check if "Type" is immediately to the right of this "Room"
+                if abs(rw[1] - tw[1]) < 10 and 0 < (tw[0] - rw[0]) < 40:
+                    is_part_of_room_type = True
+                    break
+            if not is_part_of_room_type:
+                standalone_rooms.append(rw)
+                
+        if standalone_rooms:
+            room_header_x0 = max(w[0] for w in standalone_rooms)
+            print(f"Found Room header at x0: {room_header_x0}")
+            
+        for w in words:
+            word_text = w[4]
+            
+            # First check if this word is in the Room column and looks like a room number
+            is_in_column = False
+            if room_header_x0 is not None:
+                drift = abs(w[0] - room_header_x0)
+                if drift < 25:
+                    is_in_column = True
+            else:
+                if w[0] > page.rect.width / 2:
+                    is_in_column = True
+                    
+            if is_in_column and word_text.isdigit() and len(word_text) >= 3:
+                # Check if this line contains MVG or the special rates in the PDF
+                # Strict line words for precise status matching (prevents Checked Out / Due Out collisions)
+                line_words = [w2[4].lower() for w2 in words if abs(w2[1] - w[1]) < 5]
+                line_text = " ".join(line_words)
+                
+                # Wide line words to catch wrapped text in the Agency / Company columns
+                wide_line_words = [w2[4].lower() for w2 in words if abs(w2[1] - w[1]) < 15]
+                wide_line_text = " ".join(wide_line_words)
+                
+                is_mvg_pdf = 'mvg' in wide_line_text and 'moon' in wide_line_text and 'vacation' in wide_line_text
+                is_especiales = 'especial' in wide_line_text
+                is_cortesia = 'cortesia' in wide_line_text and 'palace' in wide_line_text
+                is_travel = 'travel' in wide_line_text and 'agent' in wide_line_text
+                is_employee = 'employee' in wide_line_text and 'special' in wide_line_text
+                is_rss = 'rss' in wide_line_text and 'pro' in wide_line_text
+                is_agency_direct = 'agency' in wide_line_text and 'direct' in wide_line_text
+                is_neteurgt = 'neteurgt' in wide_line_text
+                
+                is_checked_out = 'checked out' in line_text
+                is_transfer = 'transfer' in line_text
+                
+                strong_red = is_mvg_pdf or is_especiales or is_cortesia or is_travel or is_employee or is_rss or is_agency_direct
+                weak_red = any(c in line_words for c in ['va', 'vc', 'm', 'vd', 'vr'])
+                
+                in_excel = word_text in room_data
+                data = room_data.get(word_text, {'underline': False, 'certificado': False, 'promo': False, 'mvg': False})
+                
+                has_highlight = in_excel or strong_red or weak_red or is_neteurgt
+                
+                final_color = 'none'
+                
+                if has_highlight or is_checked_out or is_transfer:
+                    if has_highlight:
+                        rect = fitz.Rect(w[0], w[1], w[2], w[3])
+                        annot = page.add_highlight_annot(rect)
+                        
+                        # Apply colors based on priority
+                        if is_neteurgt:
+                            annot.set_colors(stroke=(1, 1, 0)) # Yellow
+                            final_color = 'yellow'
+                        elif strong_red or data.get('mvg', False):
+                            annot.set_colors(stroke=red_color)
+                            final_color = 'red'
+                        elif in_excel:
+                            annot.set_colors(stroke=highlight_color) # green
+                            final_color = 'green'
+                        elif weak_red:
+                            annot.set_colors(stroke=red_color)
+                            final_color = 'red'
+                            
+                        annot.update()
+                        
+                    # Handle text insertions
+                    if is_checked_out and final_color == 'green':
+                        page.insert_text(fitz.Point(w[2] + 12, w[3] - 2), "C.O", fontsize=8, color=(1, 0, 0))
+                        
+                    if is_neteurgt:
+                        offset_x = 32 if not (is_checked_out and final_color == 'green') else 45
+                        page.insert_text(fitz.Point(w[2] + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0, 0, 0))
+                        
+                    # Handle underline for checked out
+                    if is_checked_out:
+                        for w2 in words:
+                            if abs(w2[1] - w[1]) < 5 and w2[4].lower() in ["checked", "out", "checkedout", "checked-out"]:
+                                rect2 = fitz.Rect(w2[0], w2[1], w2[2], w2[3])
+                                annot2 = page.add_underline_annot(rect2)
+                                annot2.set_colors(stroke=(1, 0, 0))
+                                annot2.update()
+                                
+                    # Handle underline for transfer
+                    if is_transfer:
+                        for w2 in words:
+                            if abs(w2[1] - w[1]) < 5 and 'transfer' in w2[4].lower():
+                                rect2 = fitz.Rect(w2[0], w2[1], w2[2], w2[3])
+                                annot2 = page.add_underline_annot(rect2)
+                                annot2.set_colors(stroke=(1.0, 0.65, 0.0)) # Orange
+                                annot2.update()
+                    
+                    if data['underline']:
+                        p1 = fitz.Point(rect.x0, rect.y1 + 1.5)
+                        p2 = fitz.Point(rect.x1, rect.y1 + 1.5)
+                        page.draw_line(p1, p2, color=(0, 0, 0), width=1.5)
+                        
+                    # Highlight Room Type if needed
+                    is_transfer_m_rule = is_transfer and final_color == 'green' and 'm' in line_words
+                    
+                    if data['certificado'] or data['promo'] or is_transfer_m_rule:
+                        type_word = None
+                        if room_type_header_x0 is not None:
+                            candidates = [w2 for w2 in words if abs(w2[1] - w[1]) < 5 and abs(w2[0] - room_type_header_x0) < 50]
+                            if candidates:
+                                type_word = min(candidates, key=lambda w2: abs(w2[0] - room_type_header_x0))
+                                
+                        if type_word is None:
+                            # Fallback: Find the word immediately to the left of the room number
+                            left_words = [w2 for w2 in words if abs(w2[1] - w[1]) < 5 and w2[2] < w[0]]
+                            if left_words:
+                                left_words.sort(key=lambda x: x[2], reverse=True)
+                                type_word = left_words[0]
+                                
+                        if type_word:
+                            print(f"Highlighting room type {type_word[4]} for room {word_text}")
+                            type_rect = fitz.Rect(type_word[0], type_word[1], type_word[2], type_word[3])
+                            type_annot = page.add_highlight_annot(type_rect)
+                            
+                            if is_transfer_m_rule:
+                                type_annot.set_colors(stroke=red_color) # Red
+                            elif data['certificado'] and data['promo']:
+                                type_annot.set_colors(stroke=(1.0, 0.6, 0.8)) # Pink
+                            elif data['certificado']:
+                                type_annot.set_colors(stroke=(0.4, 0.7, 1.0)) # Blue
+                            elif data['promo']:
+                                type_annot.set_colors(stroke=(0.8, 0.4, 1.0)) # Purple
+                                
+                            type_annot.update()
+                        else:
+                            print(f"WARNING: Could not find Room Type text for room {word_text}")
+                        
+                    # Highlight 'M' and write N.M.
+                    if is_transfer_m_rule:
+                        m_word = None
+                        for w2 in words:
+                            if abs(w2[1] - w[1]) < 5 and w2[4].lower() == 'm':
+                                m_word = w2
+                                break
+                                
+                        if m_word:
+                            rect_m = fitz.Rect(m_word[0], m_word[1], m_word[2], m_word[3])
+                            annot_m = page.add_highlight_annot(rect_m)
+                            annot_m.set_colors(stroke=red_color)
+                            annot_m.update()
+                            page.insert_text(fitz.Point(m_word[2] + 12, m_word[3] - 2), "N.M.", fontsize=8, color=(1, 0, 0))
+                            
+                    # Extract membership info for bracket linking
+                    membership_text = ""
+                    membership_right_edge = None
+                    if membership_x0 is not None:
+                        # Fixed safe width of 55 points (fits a 7-digit number perfectly) to avoid Room Type column
+                        mem_max_x = membership_x0 + 55
+                        m_words = [w2 for w2 in words if abs(w2[1] - w[1]) < 5 and (membership_x0 - 25) <= w2[0] <= mem_max_x]
+                        if m_words:
+                            membership_text = "".join([mw[4] for mw in m_words]).strip()
+                            membership_right_edge = max(mw[2] for mw in m_words)
+                            
+                    # Extract Grupo/Party info for bracket linking
+                    grupo_text = ""
+                    grupo_right_edge = None
+                    if grupo_x0 is not None:
+                        # Fixed safe width of 75 points (fits names and 8-digit numbers perfectly) to avoid Membership column
+                        grupo_max_x = grupo_x0 + 75
+                        g_words = [w2 for w2 in words if abs(w2[1] - w[1]) < 5 and (grupo_x0 - 25) <= w2[0] <= grupo_max_x]
+                        if g_words:
+                            grupo_text = "".join([gw[4] for gw in g_words]).strip()
+                            grupo_right_edge = max(gw[2] for gw in g_words)
+                        
+                    extracted_rooms_membership.append({
+                        "room": word_text,
+                        "color": final_color,
+                        "membership": membership_text,
+                        "bracket_x": membership_right_edge + 8 if membership_right_edge else (membership_x0 + 50 if membership_x0 else w[0] - 50),
+                        "grupo": grupo_text,
+                        "g_bracket_x": grupo_right_edge + 8 if grupo_right_edge else (grupo_x0 + 70 if grupo_x0 else w[0] - 100),
+                        "page_idx": page.number,
+                        "y0": w[1],
+                        "y1": w[3]
+                    })
+                        
+                    total_highlights += 1
+
+    print(f"Total highlights made: {total_highlights}")
+    
+    # Pass 2: Group by Membership Number per page
+    from collections import defaultdict
+    page_membership_groups = defaultdict(lambda: defaultdict(list))
+    page_grupo_groups = defaultdict(lambda: defaultdict(list))
+    
+    for r in extracted_rooms_membership:
+        m_num = r['membership']
+        if m_num and len(m_num) >= 4: # Ignore blank or tiny memberships
+            page_membership_groups[r['page_idx']][m_num].append(r)
+            
+        g_text = r['grupo']
+        if g_text and len(g_text) >= 4:
+            page_grupo_groups[r['page_idx']][g_text].append(r)
+            
+    # Distinct bracket colors
+    bracket_colors = [
+        (0.6, 0.2, 0.8), # Purple
+        (0.0, 0.6, 0.6), # Teal
+        (1.0, 0.5, 0.0), # Orange
+        (0.9, 0.2, 0.6), # Pink
+        (0.0, 0.4, 0.8), # Deep Blue
+    ]
+    
+    # Pass 3: Draw brackets
+    for page_idx, groups in page_membership_groups.items():
+        page = doc[page_idx]
+        color_idx = 0
+        
+        for m_num, rooms in groups.items():
+            if len(rooms) > 1:
+                # Check if group has at least one Green room
+                has_green = any(r['color'] == 'green' for r in rooms)
+                if has_green:
+                    # Filter rooms: we only bracket rooms that are green or red
+                    bracket_rooms = [r for r in rooms if r['color'] in ['green', 'red']]
+                    if len(bracket_rooms) > 1:
+                        # Draw bracket for these rooms
+                        min_y = min(r['y0'] for r in bracket_rooms)
+                        max_y = max(r['y1'] for r in bracket_rooms)
+                        
+                        bracket_color = bracket_colors[color_idx % len(bracket_colors)]
+                        color_idx += 1
+                        
+                        right_x = max(r['bracket_x'] for r in bracket_rooms)
+                        
+                        # Draw vertical line spanning from top room to bottom room
+                        page.draw_line(fitz.Point(right_x, min_y + 5), fitz.Point(right_x, max_y - 5), color=bracket_color, width=2)
+                        
+                        # Draw horizontal ticks pointing back to each room
+                        for br in bracket_rooms:
+                            mid_y = (br['y0'] + br['y1']) / 2
+                            page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=bracket_color, width=1.5)
+
+    # Pass 3b: Draw Grupo/Party brackets
+    teal_color = (0.0, 0.5, 0.5)
+    for page_idx, groups in page_grupo_groups.items():
+        page = doc[page_idx]
+        
+        for g_text, rooms in groups.items():
+            if len(rooms) > 1:
+                has_green = any(r['color'] == 'green' for r in rooms)
+                if has_green:
+                    bracket_rooms = [r for r in rooms if r['color'] in ['green', 'red']]
+                    if len(bracket_rooms) > 1:
+                        min_y = min(r['y0'] for r in bracket_rooms)
+                        max_y = max(r['y1'] for r in bracket_rooms)
+                        
+                        right_x = max(r['g_bracket_x'] for r in bracket_rooms)
+                        
+                        # Draw vertical line
+                        page.draw_line(fitz.Point(right_x, min_y + 5), fitz.Point(right_x, max_y - 5), color=teal_color, width=2)
+                        
+                        # Draw horizontal ticks
+                        for br in bracket_rooms:
+                            mid_y = (br['y0'] + br['y1']) / 2
+                            page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=teal_color, width=1.5)
+
+    doc.save(output_path)
+    doc.close()
+    return total_highlights
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/process', methods=['POST'])
+def process_files():
+    if 'excel_file' not in request.files or 'pdf_file' not in request.files:
+        return jsonify({'error': 'Missing files'}), 400
+        
+    excel_file = request.files['excel_file']
+    pdf_file = request.files['pdf_file']
+    
+    if excel_file.filename == '' or pdf_file.filename == '':
+        return jsonify({'error': 'No files selected'}), 400
+        
+    excel_filename = secure_filename(excel_file.filename)
+    pdf_filename = secure_filename(pdf_file.filename)
+    
+    excel_path = os.path.join(app.config['UPLOAD_FOLDER'], excel_filename)
+    pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_filename)
+    output_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'highlighted_' + pdf_filename)
+    
+    excel_file.save(excel_path)
+    pdf_file.save(pdf_path)
+    
+    try:
+        # 1. Extract rooms
+        rooms = extract_rooms_from_excel(excel_path)
+        if not rooms:
+            return jsonify({'error': 'Could not find any room numbers in the Excel file.'}), 400
+            
+        # 2. Highlight PDF
+        highlights_made = highlight_pdf(pdf_path, rooms, output_pdf_path)
+        
+        # 3. Clean up input files
+        os.remove(excel_path)
+        os.remove(pdf_path)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Found {len(rooms)} unique rooms in Excel. Made {highlights_made} highlights in PDF.',
+            'download_url': f'/download/{secure_filename("highlighted_" + pdf_filename)}'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.exists(file_path):
+        return send_file(file_path, as_attachment=True)
+    return "File not found", 404
+
+if __name__ == '__main__':
+    # Listen on all interfaces so it can be accessed from the iPad
+    app.run(host='0.0.0.0', port=5000, debug=True)
