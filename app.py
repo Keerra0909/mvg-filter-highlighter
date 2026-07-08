@@ -309,17 +309,20 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         annot.update()
                         
                     # Handle text insertions
-                    offset_x = 12
+                    right_words = [w2 for w2 in line_words_raw if w2[0] >= w[0]]
+                    base_x = max(w2[2] for w2 in right_words) if right_words else w[2]
+                    
+                    offset_x = 8 # Add a small buffer after the last word
                     if is_checked_out and final_color == 'green':
-                        page.insert_text(fitz.Point(w[2] + offset_x, w[3] - 2), "C.O", fontsize=8, color=(1, 0, 0))
+                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "C.O", fontsize=8, color=(1, 0, 0))
                         offset_x += 18
                         
                     if is_neteurgt:
-                        page.insert_text(fitz.Point(w[2] + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0, 0, 0))
+                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0, 0, 0))
                         offset_x += 25
                         
                     if is_kids_only and final_color in ('green', 'none'):
-                        page.insert_text(fitz.Point(w[2] + offset_x, w[3] - 2), "KIDS", fontsize=8, color=(0.53, 0.81, 0.98))
+                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "KIDS", fontsize=8, color=(0.53, 0.81, 0.98))
                         offset_x += 20
                         
                     # Handle underline for checked out
