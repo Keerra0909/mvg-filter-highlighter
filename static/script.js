@@ -85,7 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Populate summary stats
                 if (data.stats) {
-                    document.getElementById('stat-total').textContent = data.stats.total_rooms_found || 0;
                     document.getElementById('stat-green').textContent = data.stats.total_green || 0;
                     document.getElementById('stat-brackets').textContent = data.stats.total_linked_groups || 0;
                     document.getElementById('stat-presentations').textContent = data.stats.total_presentations || 0;

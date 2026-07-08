@@ -12,13 +12,13 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 def extract_rooms_from_excel(excel_path):
-    # Try reading the excel file without assuming row 0 is the header, and read ALL sheets
     try:
-        dfs = pd.read_excel(excel_path, header=None, sheet_name=None)
+        df = pd.read_excel(excel_path, header=None)
+        dfs = {'Sheet1': df}
     except Exception as e:
         print(f"Error reading Excel: {e}")
         return {}
-
+    
     room_data = {}
     
     for sheet_name, df in dfs.items():
@@ -492,6 +492,7 @@ def process_files():
         stats = highlight_pdf(pdf_path, rooms, output_pdf_path)
         
         # Add Excel-based stats
+        stats['total_green'] = len(rooms)
         stats['total_promos'] = sum(1 for d in rooms.values() if d.get('promo', False))
         stats['total_certs'] = sum(1 for d in rooms.values() if d.get('certificado', False))
         
