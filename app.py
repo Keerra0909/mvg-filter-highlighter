@@ -420,6 +420,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         
                     extracted_rooms_membership.append({
                         "room": word_text,
+                        "room_x1": w[2],
                         "color": final_color,
                         "membership": membership_text,
                         "bracket_x": membership_right_edge + 8 if membership_right_edge else (membership_x0 + 50 if membership_x0 else w[0] - 50),
@@ -430,7 +431,8 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         "y1": w[3],
                         "line_words_raw": line_words_raw,
                         "type_word": type_word,
-                        "is_mvg": is_mvg_pdf
+                        "is_mvg": is_mvg_pdf,
+                        "offset_x": offset_x
                     })
                         
                     total_highlights += 1
@@ -450,6 +452,25 @@ def highlight_pdf(pdf_path, room_data, output_path):
         g_text = r['grupo']
         if g_text and len(g_text) >= 4:
             page_grupo_groups[r['page_idx']][g_text].append(r)
+            
+    # Global groupings for cross-page Super Shots
+    global_membership_groups = defaultdict(list)
+    global_grupo_groups = defaultdict(list)
+    for r in extracted_rooms_membership:
+        if r['membership'] and len(r['membership']) >= 4:
+            global_membership_groups[r['membership']].append(r)
+        if r['grupo'] and len(r['grupo']) >= 4:
+            global_grupo_groups[r['grupo']].append(r)
+            
+    super_shot_memberships = set()
+    for m_num, rooms in global_membership_groups.items():
+        if any(r['color'] == 'green' for r in rooms) and any(r['is_mvg'] for r in rooms):
+            super_shot_memberships.add(m_num)
+            
+    super_shot_grupos = set()
+    for g_text, rooms in global_grupo_groups.items():
+        if any(r['color'] == 'green' for r in rooms) and any(r['is_mvg'] for r in rooms):
+            super_shot_grupos.add(g_text)
             
     # Distinct bracket colors
     bracket_colors = [
@@ -492,28 +513,6 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         for br in bracket_rooms:
                             mid_y = (br['y0'] + br['y1']) / 2
                             page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=bracket_color, width=1.5)
-                            
-                        # SUPER SHOT DETECTION
-                        has_mvg = any(r['is_mvg'] for r in bracket_rooms)
-                        if has_green and has_mvg:
-                            total_super_shots += 1
-                            # Draw Star
-                            mid_y = (min_y + max_y) / 2
-                            page.insert_text(fitz.Point(right_x + 5, mid_y + 4), "★", fontsize=14, color=(1.0, 0.4, 0.7)) # Pink star
-                            
-                            # Highlight Agency text in Pink
-                            for br in bracket_rooms:
-                                type_w = br['type_word']
-                                if type_w:
-                                    # Highlight words before the Room Type (usually Agency name/code)
-                                    agency_words = [w for w in br['line_words_raw'] if w[2] < type_w[0] and w[0] > (type_w[0] - 180)]
-                                    if agency_words:
-                                        a_min_x = min(w[0] for w in agency_words)
-                                        a_max_x = max(w[2] for w in agency_words)
-                                        a_rect = fitz.Rect(a_min_x, br['y0'], a_max_x, br['y1'])
-                                        a_annot = page.add_highlight_annot(a_rect)
-                                        a_annot.set_colors(stroke=(1.0, 0.6, 0.8)) # Pink
-                                        a_annot.update()
 
     # Pass 3b: Draw Grupo/Party brackets
     teal_color = (0.0, 0.5, 0.5)
@@ -539,27 +538,50 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         for br in bracket_rooms:
                             mid_y = (br['y0'] + br['y1']) / 2
                             page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=teal_color, width=1.5)
-                            
-                        # SUPER SHOT DETECTION
-                        has_mvg = any(r['is_mvg'] for r in bracket_rooms)
-                        if has_green and has_mvg:
-                            total_super_shots += 1
-                            # Draw Star
-                            mid_y = (min_y + max_y) / 2
-                            page.insert_text(fitz.Point(right_x + 5, mid_y + 4), "★", fontsize=14, color=(1.0, 0.4, 0.7)) # Pink star
-                            
-                            # Highlight Agency text in Pink
-                            for br in bracket_rooms:
-                                type_w = br['type_word']
-                                if type_w:
-                                    agency_words = [w for w in br['line_words_raw'] if w[2] < type_w[0] and w[0] > (type_w[0] - 180)]
-                                    if agency_words:
-                                        a_min_x = min(w[0] for w in agency_words)
-                                        a_max_x = max(w[2] for w in agency_words)
-                                        a_rect = fitz.Rect(a_min_x, br['y0'], a_max_x, br['y1'])
-                                        a_annot = page.add_highlight_annot(a_rect)
-                                        a_annot.set_colors(stroke=(1.0, 0.6, 0.8)) # Pink
-                                        a_annot.update()
+
+    # Pass 5: Global Super Shots
+    super_shot_global_groups = []
+    processed_ss_rooms = set()
+    
+    for m_num in super_shot_memberships:
+        rooms = global_membership_groups[m_num]
+        room_ids = tuple(sorted(r['room'] for r in rooms))
+        if room_ids not in processed_ss_rooms:
+            super_shot_global_groups.append(rooms)
+            processed_ss_rooms.add(room_ids)
+            
+    for g_text in super_shot_grupos:
+        rooms = global_grupo_groups[g_text]
+        room_ids = tuple(sorted(r['room'] for r in rooms))
+        if room_ids not in processed_ss_rooms:
+            super_shot_global_groups.append(rooms)
+            processed_ss_rooms.add(room_ids)
+            
+    total_super_shots = len(super_shot_global_groups)
+    
+    for rooms in super_shot_global_groups:
+        is_multi_page = len(set(r['page_idx'] for r in rooms)) > 1
+        
+        for r in rooms:
+            page = doc[r['page_idx']]
+            
+            # 1. Highlight Agency Text
+            agency_words = [w for w in r['line_words_raw'] if w[2] < 200]
+            if agency_words:
+                a_min_x = min(w[0] for w in agency_words)
+                a_max_x = max(w[2] for w in agency_words)
+                a_rect = fitz.Rect(a_min_x, r['y0'], a_max_x, r['y1'])
+                a_annot = page.add_highlight_annot(a_rect)
+                a_annot.set_colors(stroke=(1.0, 0.6, 0.8)) # Pink
+                a_annot.update()
+                
+            # 2. Draw Multi-page Star
+            if is_multi_page:
+                linked_rooms = [r2['room'] for r2 in rooms if r2['room'] != r['room']]
+                if linked_rooms:
+                    text_str = "★ " + ", ".join(linked_rooms)
+                    text_x = r['room_x1'] + r['offset_x'] + 5
+                    page.insert_text(fitz.Point(text_x, r['y1'] - 2), text_str, fontsize=9, color=(1.0, 0.4, 0.7))
 
     # Pass 4: Draw Family Suite (F.S.) brackets
     from collections import defaultdict
