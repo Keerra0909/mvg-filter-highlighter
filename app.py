@@ -233,11 +233,14 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         break
                         
                 room_type = ""
+                type_word = None
                 if room_idx > 0:
-                    room_type = line_words_raw[room_idx - 1][4].upper()
+                    type_word = line_words_raw[room_idx - 1]
+                    room_type = type_word[4].upper()
                     if not room_type.startswith('F') and room_idx > 1:
                         if line_words_raw[room_idx - 2][4].upper().startswith('F'):
-                            room_type = line_words_raw[room_idx - 2][4].upper()
+                            type_word = line_words_raw[room_idx - 2]
+                            room_type = type_word[4].upper()
                             
                 if family_id and room_type.startswith('F'):
                     f_suite_candidates.append({
@@ -426,7 +429,8 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         "y0": w[1],
                         "y1": w[3],
                         "line_words_raw": line_words_raw,
-                        "type_word": type_word
+                        "type_word": type_word,
+                        "is_mvg": is_mvg_pdf
                     })
                         
                     total_highlights += 1
@@ -490,8 +494,8 @@ def highlight_pdf(pdf_path, room_data, output_path):
                             page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=bracket_color, width=1.5)
                             
                         # SUPER SHOT DETECTION
-                        has_red = any(r['color'] == 'red' for r in bracket_rooms)
-                        if has_green and has_red:
+                        has_mvg = any(r['is_mvg'] for r in bracket_rooms)
+                        if has_green and has_mvg:
                             total_super_shots += 1
                             # Draw Star
                             mid_y = (min_y + max_y) / 2
@@ -537,8 +541,8 @@ def highlight_pdf(pdf_path, room_data, output_path):
                             page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=teal_color, width=1.5)
                             
                         # SUPER SHOT DETECTION
-                        has_red = any(r['color'] == 'red' for r in bracket_rooms)
-                        if has_green and has_red:
+                        has_mvg = any(r['is_mvg'] for r in bracket_rooms)
+                        if has_green and has_mvg:
                             total_super_shots += 1
                             # Draw Star
                             mid_y = (min_y + max_y) / 2
