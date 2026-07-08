@@ -617,6 +617,9 @@ def highlight_pdf(pdf_path, room_data, output_path):
     pdf_promos = sum(1 for room in processed_rooms if room_data.get(room, {}).get('promo', False))
     pdf_certs = sum(1 for room in processed_rooms if room_data.get(room, {}).get('certificado', False))
     
+    super_shots_mvg_list = sorted(list(set([r['room'] for group in super_shot_global_groups for r in group if r['is_mvg']])))
+    super_shots_green_list = sorted(list(set([r['room'] for group in super_shot_global_groups for r in group if r['color'] == 'green'])))
+    
     return {
         'total_rooms_found': len(processed_rooms),
         'total_green': total_green,
@@ -625,6 +628,8 @@ def highlight_pdf(pdf_path, room_data, output_path):
         'total_promos': pdf_promos,
         'total_certs': pdf_certs,
         'total_super_shots': total_super_shots,
+        'super_shots_mvg': super_shots_mvg_list,
+        'super_shots_green': super_shots_green_list,
         'new_members': sorted(list(new_members)),
         'checkouts': sorted(list(checkouts)),
         'processed_rooms_list': list(processed_rooms)

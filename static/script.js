@@ -102,7 +102,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const superShotsCount = data.stats.total_super_shots || 0;
                     const ssBox = document.getElementById('box-supershots');
                     if (superShotsCount > 0) {
-                        document.getElementById('stat-supershots').textContent = superShotsCount;
+                        const mvgRooms = data.stats.super_shots_mvg || [];
+                        const greenRooms = data.stats.super_shots_green || [];
+                        const allRooms = [...new Set([...mvgRooms, ...greenRooms])].join(', ');
+                        
+                        document.getElementById('stat-supershots').textContent = allRooms || superShotsCount;
+                        document.getElementById('label-supershots').textContent = `${superShotsCount} ★ Super Shots`;
+                        document.getElementById('supershots-details').style.display = 'block';
+                        document.getElementById('ss-mvg').textContent = mvgRooms.join(', ') || 'None';
+                        document.getElementById('ss-green').textContent = greenRooms.join(', ') || 'None';
                         ssBox.style.display = 'block';
                     } else {
                         ssBox.style.display = 'none';
