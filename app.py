@@ -318,7 +318,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         page.insert_text(fitz.Point(w[2] + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0, 0, 0))
                         offset_x += 25
                         
-                    if is_kids_only:
+                    if is_kids_only and final_color in ('green', 'none'):
                         page.insert_text(fitz.Point(w[2] + offset_x, w[3] - 2), "KIDS", fontsize=8, color=(0.53, 0.81, 0.98))
                         offset_x += 20
                         
