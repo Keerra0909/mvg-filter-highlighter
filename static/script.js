@@ -85,15 +85,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Populate summary stats
                 if (data.stats) {
-                    document.getElementById('stat-duplicates').textContent = data.stats.duplicates && data.stats.duplicates.length > 0 ? data.stats.duplicates.join(', ') : 'None';
+                    if (data.stats.duplicates && data.stats.duplicates.length > 0) {
+                        document.getElementById('stat-duplicates').textContent = data.stats.duplicates.join(', ');
+                        document.getElementById('label-duplicates').textContent = `${data.stats.duplicates.length} Duplicates`;
+                    } else {
+                        document.getElementById('stat-duplicates').textContent = 'None';
+                        document.getElementById('label-duplicates').textContent = 'Duplicates';
+                    }
+                    
                     document.getElementById('stat-green').textContent = data.stats.total_green || 0;
                     document.getElementById('stat-brackets').textContent = data.stats.total_linked_groups || 0;
                     document.getElementById('stat-presentations').textContent = data.stats.total_presentations || 0;
                     document.getElementById('stat-promos').textContent = data.stats.total_promos || 0;
                     document.getElementById('stat-certs').textContent = data.stats.total_certs || 0;
                     
-                    document.getElementById('stat-newmembers').textContent = data.stats.new_members && data.stats.new_members.length > 0 ? data.stats.new_members.join(', ') : 'None';
-                    document.getElementById('stat-checkouts').textContent = data.stats.checkouts && data.stats.checkouts.length > 0 ? data.stats.checkouts.join(', ') : 'None';
+                    if (data.stats.new_members && data.stats.new_members.length > 0) {
+                        document.getElementById('stat-newmembers').textContent = data.stats.new_members.join(', ');
+                        document.getElementById('label-newmembers').textContent = `${data.stats.new_members.length} NEW MEMBER (Transfer + M)`;
+                    } else {
+                        document.getElementById('stat-newmembers').textContent = 'None';
+                        document.getElementById('label-newmembers').textContent = 'NEW MEMBER (Transfer + M)';
+                    }
+                    
+                    if (data.stats.checkouts && data.stats.checkouts.length > 0) {
+                        document.getElementById('stat-checkouts').textContent = data.stats.checkouts.join(', ');
+                        document.getElementById('label-checkouts').textContent = `${data.stats.checkouts.length} Check Outs`;
+                    } else {
+                        document.getElementById('stat-checkouts').textContent = 'None';
+                        document.getElementById('label-checkouts').textContent = 'Check Outs';
+                    }
                 }
                 
                 downloadBtn.href = data.download_url;
