@@ -97,11 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 downloadBtn.href = data.download_url;
-                
-                // Auto trigger download after a short delay
-                setTimeout(() => {
-                    window.location.href = data.download_url;
-                }, 1000);
             } else {
                 alert('Error: ' + data.error);
                 form.classList.remove('hidden');
