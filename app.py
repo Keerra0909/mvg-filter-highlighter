@@ -20,6 +20,8 @@ def extract_rooms_from_excel(excel_path):
         return {}
     
     room_data = {}
+    seen_rooms = set()
+    duplicate_rooms = set()
     
     for sheet_name, df in dfs.items():
         print(f"Processing sheet: {sheet_name}")
@@ -83,6 +85,11 @@ def extract_rooms_from_excel(excel_path):
                                 if has_certificado or has_promo or has_mvg:
                                     print(f"Matched promo/cert/mvg for room {val_str}: {reason_str}")
                                 
+                        if val_str in seen_rooms:
+                            duplicate_rooms.add(val_str)
+                        else:
+                            seen_rooms.add(val_str)
+                            
                         if val_str not in room_data:
                             room_data[val_str] = {'underline': False, 'certificado': False, 'promo': False, 'mvg': False}
                             
@@ -104,13 +111,18 @@ def extract_rooms_from_excel(excel_path):
                         val_str = val_str.replace(',', '')
                         
                         if val_str.isdigit() and 3 <= len(val_str) <= 6:
+                            if val_str in seen_rooms:
+                                duplicate_rooms.add(val_str)
+                            else:
+                                seen_rooms.add(val_str)
+                                
                             if val_str not in room_data:
                                 room_data[val_str] = {'underline': False, 'certificado': False, 'promo': False, 'mvg': False}
                     except:
                         pass
                     
     print(f"Extracted {len(room_data)} unique rooms")
-    return room_data
+    return room_data, list(duplicate_rooms)
 
 def highlight_pdf(pdf_path, room_data, output_path):
     doc = fitz.open(pdf_path)
@@ -121,6 +133,8 @@ def highlight_pdf(pdf_path, room_data, output_path):
     total_green = 0
     total_presentations = 0
     processed_rooms = set()
+    new_members = set()
+    checkouts = set()
     
     extracted_rooms_membership = []
     last_grupo_x0 = None
@@ -258,6 +272,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         
                     # Handle underline for checked out
                     if is_checked_out:
+                        checkouts.add(word_text)
                         for w2 in words:
                             if abs(w2[1] - w[1]) < 5 and w2[4].lower() in ["checked", "out", "checkedout", "checked-out"]:
                                 rect2 = fitz.Rect(w2[0], w2[1], w2[2], w2[3])
@@ -281,6 +296,8 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         
                     # Highlight Room Type if needed
                     is_transfer_m_rule = is_transfer and final_color == 'green' and 'm' in line_words
+                    if is_transfer_m_rule:
+                        new_members.add(word_text)
                     
                     if data['certificado'] or data['promo'] or is_transfer_m_rule:
                         type_word = None
@@ -450,11 +467,19 @@ def highlight_pdf(pdf_path, room_data, output_path):
     doc.save(output_path)
     doc.close()
     
+    # Calculate PDF-specific stats
+    pdf_promos = sum(1 for room in processed_rooms if room_data.get(room, {}).get('promo', False))
+    pdf_certs = sum(1 for room in processed_rooms if room_data.get(room, {}).get('certificado', False))
+    
     return {
         'total_rooms_found': len(processed_rooms),
         'total_green': total_green,
         'total_presentations': total_presentations,
-        'total_linked_groups': total_linked_groups
+        'total_linked_groups': total_linked_groups,
+        'total_promos': pdf_promos,
+        'total_certs': pdf_certs,
+        'new_members': list(new_members),
+        'checkouts': list(checkouts)
     }
 
 @app.route('/')
@@ -484,17 +509,16 @@ def process_files():
     
     try:
         # 1. Extract rooms
-        rooms = extract_rooms_from_excel(excel_path)
+        rooms, duplicates = extract_rooms_from_excel(excel_path)
         if not rooms:
             return jsonify({'error': 'Could not find any room numbers in the Excel file.'}), 400
             
         # 2. Highlight PDF
         stats = highlight_pdf(pdf_path, rooms, output_pdf_path)
         
-        # Add Excel-based stats
+        # Add Excel-based duplicate stats
+        stats['duplicates'] = duplicates
         stats['total_green'] = len(rooms)
-        stats['total_promos'] = sum(1 for d in rooms.values() if d.get('promo', False))
-        stats['total_certs'] = sum(1 for d in rooms.values() if d.get('certificado', False))
         
         # 3. Clean up input files
         os.remove(excel_path)
