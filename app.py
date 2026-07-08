@@ -128,9 +128,9 @@ def highlight_pdf(pdf_path, room_data, output_path):
     highlight_color = (0.5, 1.0, 0.5) # Light green color
     red_color = (1.0, 0.4, 0.4) # Light red color
 
-    total_highlights = 0
     total_green = 0
     total_presentations = 0
+    total_super_shots = 0
     processed_rooms = set()
     new_members = set()
     checkouts = set()
@@ -423,7 +423,9 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         "g_bracket_x": grupo_right_edge + 8 if grupo_right_edge else (grupo_x0 + 70 if grupo_x0 else w[0] - 100),
                         "page_idx": page.number,
                         "y0": w[1],
-                        "y1": w[3]
+                        "y1": w[3],
+                        "line_words_raw": line_words_raw,
+                        "type_word": type_word
                     })
                         
                     total_highlights += 1
@@ -480,10 +482,33 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         # Draw vertical line spanning from top room to bottom room
                         page.draw_line(fitz.Point(right_x, min_y + 5), fitz.Point(right_x, max_y - 5), color=bracket_color, width=2)
                         
+                        
                         # Draw horizontal ticks pointing back to each room
                         for br in bracket_rooms:
                             mid_y = (br['y0'] + br['y1']) / 2
                             page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=bracket_color, width=1.5)
+                            
+                        # SUPER SHOT DETECTION
+                        has_red = any(r['color'] == 'red' for r in bracket_rooms)
+                        if has_green and has_red:
+                            total_super_shots += 1
+                            # Draw Star
+                            mid_y = (min_y + max_y) / 2
+                            page.insert_text(fitz.Point(right_x + 5, mid_y + 4), "★", fontsize=14, color=(1.0, 0.4, 0.7)) # Pink star
+                            
+                            # Highlight Agency text in Pink
+                            for br in bracket_rooms:
+                                type_w = br['type_word']
+                                if type_w:
+                                    # Highlight words before the Room Type (usually Agency name/code)
+                                    agency_words = [w for w in br['line_words_raw'] if w[2] < type_w[0] and w[0] > (type_w[0] - 180)]
+                                    if agency_words:
+                                        a_min_x = min(w[0] for w in agency_words)
+                                        a_max_x = max(w[2] for w in agency_words)
+                                        a_rect = fitz.Rect(a_min_x, br['y0'], a_max_x, br['y1'])
+                                        a_annot = page.add_highlight_annot(a_rect)
+                                        a_annot.set_colors(stroke=(1.0, 0.6, 0.8)) # Pink
+                                        a_annot.update()
 
     # Pass 3b: Draw Grupo/Party brackets
     teal_color = (0.0, 0.5, 0.5)
@@ -509,6 +534,27 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         for br in bracket_rooms:
                             mid_y = (br['y0'] + br['y1']) / 2
                             page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=teal_color, width=1.5)
+                            
+                        # SUPER SHOT DETECTION
+                        has_red = any(r['color'] == 'red' for r in bracket_rooms)
+                        if has_green and has_red:
+                            total_super_shots += 1
+                            # Draw Star
+                            mid_y = (min_y + max_y) / 2
+                            page.insert_text(fitz.Point(right_x + 5, mid_y + 4), "★", fontsize=14, color=(1.0, 0.4, 0.7)) # Pink star
+                            
+                            # Highlight Agency text in Pink
+                            for br in bracket_rooms:
+                                type_w = br['type_word']
+                                if type_w:
+                                    agency_words = [w for w in br['line_words_raw'] if w[2] < type_w[0] and w[0] > (type_w[0] - 180)]
+                                    if agency_words:
+                                        a_min_x = min(w[0] for w in agency_words)
+                                        a_max_x = max(w[2] for w in agency_words)
+                                        a_rect = fitz.Rect(a_min_x, br['y0'], a_max_x, br['y1'])
+                                        a_annot = page.add_highlight_annot(a_rect)
+                                        a_annot.set_colors(stroke=(1.0, 0.6, 0.8)) # Pink
+                                        a_annot.update()
 
     # Pass 4: Draw Family Suite (F.S.) brackets
     from collections import defaultdict
@@ -550,9 +596,12 @@ def highlight_pdf(pdf_path, room_data, output_path):
         'total_linked_groups': total_linked_groups,
         'total_promos': pdf_promos,
         'total_certs': pdf_certs,
-        'new_members': list(new_members),
-        'checkouts': list(checkouts),
-        'processed_rooms_list': list(processed_rooms)
+        'total_super_shots': total_super_shots,
+        'stats': {
+            'new_members': sorted(list(new_members)),
+            'checkouts': sorted(list(checkouts)),
+            'duplicates': duplicates
+        }
     }
 
 @app.route('/')

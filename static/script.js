@@ -99,6 +99,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('stat-promos').textContent = data.stats.total_promos || 0;
                     document.getElementById('stat-certs').textContent = data.stats.total_certs || 0;
                     
+                    const superShotsCount = data.stats.total_super_shots || 0;
+                    const ssBox = document.getElementById('box-supershots');
+                    if (superShotsCount > 0) {
+                        document.getElementById('stat-supershots').textContent = superShotsCount;
+                        ssBox.style.display = 'block';
+                    } else {
+                        ssBox.style.display = 'none';
+                    }
+                    
                     if (data.stats.new_members && data.stats.new_members.length > 0) {
                         document.getElementById('stat-newmembers').textContent = data.stats.new_members.join(', ');
                         document.getElementById('label-newmembers').textContent = `${data.stats.new_members.length} NEW MEMBER (Transfer + M)`;
