@@ -135,12 +135,14 @@ def highlight_pdf(pdf_path, room_data, output_path):
     new_members = set()
     checkouts = set()
     
+    f_suite_candidates = []
+    
     extracted_rooms_membership = []
     last_grupo_x0 = None
     last_membership_x0 = None
     last_room_type_header_x0 = None
     
-    for page in doc:
+    for page_num, page in enumerate(doc):
         words = page.get_text("words")
         # Find the headers, restricting to the upper half of the page to avoid footers
         header_y_threshold = page.rect.height / 2
@@ -214,6 +216,30 @@ def highlight_pdf(pdf_path, room_data, output_path):
                 if len(line_words) >= 2:
                     if line_words[0] == '0' and line_words[1].isdigit() and int(line_words[1]) > 0:
                         is_kids_only = True
+                        
+                # Check for F-Suite Candidates
+                last_name = next((w2[4].replace(',', '').strip().lower() for w2 in line_words_raw if ',' in w2[4]), None)
+                room_idx = -1
+                for i, w2 in enumerate(line_words_raw):
+                    if w2[0] == w[0] and w2[1] == w[1]:
+                        room_idx = i
+                        break
+                        
+                room_type = ""
+                if room_idx > 0:
+                    room_type = line_words_raw[room_idx - 1][4].upper()
+                    if not room_type.startswith('F') and room_idx > 1:
+                        if line_words_raw[room_idx - 2][4].upper().startswith('F'):
+                            room_type = line_words_raw[room_idx - 2][4].upper()
+                            
+                if last_name and room_type.startswith('F'):
+                    f_suite_candidates.append({
+                        'page_idx': page_num,
+                        'last_name': last_name,
+                        'y0': w[1],
+                        'y1': w[3],
+                        'bracket_x': w[2] + 45  # Offset to the right of the room number and other status texts
+                    })
                 
                 line_text = " ".join(line_words)
                 
@@ -477,6 +503,32 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         for br in bracket_rooms:
                             mid_y = (br['y0'] + br['y1']) / 2
                             page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=teal_color, width=1.5)
+
+    # Pass 4: Draw Family Suite (F.S.) brackets
+    from collections import defaultdict
+    page_fsuite_groups = defaultdict(lambda: defaultdict(list))
+    
+    for r in f_suite_candidates:
+        page_fsuite_groups[r['page_idx']][r['last_name']].append(r)
+        
+    for page_idx, groups in page_fsuite_groups.items():
+        page = doc[page_idx]
+        for lname, rooms in groups.items():
+            if len(rooms) > 1:
+                min_y = min(r['y0'] for r in rooms)
+                max_y = max(r['y1'] for r in rooms)
+                right_x = max(r['bracket_x'] for r in rooms) + 20
+                
+                # Draw vertical line (bracket)
+                page.draw_line(fitz.Point(right_x, min_y + 5), fitz.Point(right_x, max_y - 5), color=(0.1, 0.6, 0.1), width=2)
+                
+                # Draw top and bottom prongs
+                page.draw_line(fitz.Point(right_x - 3, min_y + 5), fitz.Point(right_x, min_y + 5), color=(0.1, 0.6, 0.1), width=2)
+                page.draw_line(fitz.Point(right_x - 3, max_y - 5), fitz.Point(right_x, max_y - 5), color=(0.1, 0.6, 0.1), width=2)
+                
+                # Add "F.S."
+                mid_y = (min_y + max_y) / 2
+                page.insert_text(fitz.Point(right_x + 5, mid_y + 3), "F.S.", fontsize=10, color=(0.1, 0.6, 0.1))
 
     doc.save(output_path)
     doc.close()
