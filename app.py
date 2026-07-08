@@ -13,8 +13,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 def extract_rooms_from_excel(excel_path):
     try:
-        df = pd.read_excel(excel_path, header=None)
-        dfs = {'Sheet1': df}
+        dfs = pd.read_excel(excel_path, header=None, sheet_name=None)
     except Exception as e:
         print(f"Error reading Excel: {e}")
         return {}
