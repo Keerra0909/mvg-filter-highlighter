@@ -238,7 +238,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         'last_name': last_name,
                         'y0': w[1],
                         'y1': w[3],
-                        'bracket_x': w[2] + 45  # Offset to the right of the room number and other status texts
+                        'bracket_x': w[2] + 30  # Closer to the room number
                     })
                 
                 line_text = " ".join(line_words)
@@ -517,7 +517,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
             if len(rooms) > 1:
                 min_y = min(r['y0'] for r in rooms)
                 max_y = max(r['y1'] for r in rooms)
-                right_x = max(r['bracket_x'] for r in rooms) + 20
+                right_x = max(r['bracket_x'] for r in rooms) + 12 # Slightly more offset
                 
                 # Draw vertical line (bracket)
                 page.draw_line(fitz.Point(right_x, min_y + 5), fitz.Point(right_x, max_y - 5), color=(0.1, 0.6, 0.1), width=2)
@@ -528,7 +528,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                 
                 # Add "F.S."
                 mid_y = (min_y + max_y) / 2
-                page.insert_text(fitz.Point(right_x + 5, mid_y + 3), "F.S.", fontsize=10, color=(0.1, 0.6, 0.1))
+                page.insert_text(fitz.Point(right_x + 3, mid_y + 3), "F.S.", fontsize=10, color=(0.1, 0.6, 0.1))
 
     doc.save(output_path)
     doc.close()
