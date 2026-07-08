@@ -118,6 +118,10 @@ def highlight_pdf(pdf_path, room_data, output_path):
     red_color = (1.0, 0.4, 0.4) # Light red color
 
     total_highlights = 0
+    total_green = 0
+    total_presentations = 0
+    processed_rooms = set()
+    
     extracted_rooms_membership = []
     last_grupo_x0 = None
     last_membership_x0 = None
@@ -233,6 +237,11 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         elif in_excel:
                             annot.set_colors(stroke=highlight_color) # green
                             final_color = 'green'
+                            if word_text not in processed_rooms:
+                                processed_rooms.add(word_text)
+                                total_green += 1
+                                if data['underline']:
+                                    total_presentations += 1
                         elif weak_red:
                             annot.set_colors(stroke=red_color)
                             final_color = 'red'
@@ -382,6 +391,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
     ]
     
     # Pass 3: Draw brackets
+    total_linked_groups = 0
     for page_idx, groups in page_membership_groups.items():
         page = doc[page_idx]
         color_idx = 0
@@ -394,6 +404,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                     # Filter rooms: we only bracket rooms that are green or red
                     bracket_rooms = [r for r in rooms if r['color'] in ['green', 'red']]
                     if len(bracket_rooms) > 1:
+                        total_linked_groups += 1
                         # Draw bracket for these rooms
                         min_y = min(r['y0'] for r in bracket_rooms)
                         max_y = max(r['y1'] for r in bracket_rooms)
@@ -422,6 +433,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                 if has_green:
                     bracket_rooms = [r for r in rooms if r['color'] in ['green', 'red']]
                     if len(bracket_rooms) > 1:
+                        total_linked_groups += 1
                         min_y = min(r['y0'] for r in bracket_rooms)
                         max_y = max(r['y1'] for r in bracket_rooms)
                         
@@ -437,7 +449,13 @@ def highlight_pdf(pdf_path, room_data, output_path):
 
     doc.save(output_path)
     doc.close()
-    return total_highlights
+    
+    return {
+        'total_rooms_found': len(processed_rooms),
+        'total_green': total_green,
+        'total_presentations': total_presentations,
+        'total_linked_groups': total_linked_groups
+    }
 
 @app.route('/')
 def index():
@@ -471,7 +489,11 @@ def process_files():
             return jsonify({'error': 'Could not find any room numbers in the Excel file.'}), 400
             
         # 2. Highlight PDF
-        highlights_made = highlight_pdf(pdf_path, rooms, output_pdf_path)
+        stats = highlight_pdf(pdf_path, rooms, output_pdf_path)
+        
+        # Add Excel-based stats
+        stats['total_promos'] = sum(1 for d in rooms.values() if d.get('promo', False))
+        stats['total_certs'] = sum(1 for d in rooms.values() if d.get('certificado', False))
         
         # 3. Clean up input files
         os.remove(excel_path)
@@ -479,8 +501,9 @@ def process_files():
         
         return jsonify({
             'success': True,
-            'message': f'Found {len(rooms)} unique rooms in Excel. Made {highlights_made} highlights in PDF.',
-            'download_url': f'/download/{secure_filename("highlighted_" + pdf_filename)}'
+            'message': 'Success',
+            'download_url': f'/download/{secure_filename("highlighted_" + pdf_filename)}',
+            'stats': stats
         })
         
     except Exception as e:

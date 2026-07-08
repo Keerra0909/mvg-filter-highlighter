@@ -43,6 +43,25 @@ document.addEventListener('DOMContentLoaded', () => {
         checkFiles();
     });
 
+    const passwordContainer = document.getElementById('password-container');
+    const appContainer = document.getElementById('app-container');
+    const passwordInput = document.getElementById('password-input');
+    const passwordBtn = document.getElementById('password-btn');
+    const passwordError = document.getElementById('password-error');
+
+    passwordBtn.addEventListener('click', () => {
+        if (passwordInput.value === 'MVG2026') {
+            passwordContainer.style.display = 'none';
+            appContainer.style.display = 'block';
+        } else {
+            passwordError.style.display = 'block';
+        }
+    });
+
+    passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') passwordBtn.click();
+    });
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -63,7 +82,17 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (response.ok) {
                 resultDiv.classList.remove('hidden');
-                document.getElementById('result-text').textContent = data.message;
+                
+                // Populate summary stats
+                if (data.stats) {
+                    document.getElementById('stat-total').textContent = data.stats.total_rooms_found || 0;
+                    document.getElementById('stat-green').textContent = data.stats.total_green || 0;
+                    document.getElementById('stat-brackets').textContent = data.stats.total_linked_groups || 0;
+                    document.getElementById('stat-presentations').textContent = data.stats.total_presentations || 0;
+                    document.getElementById('stat-promos').textContent = data.stats.total_promos || 0;
+                    document.getElementById('stat-certs').textContent = data.stats.total_certs || 0;
+                }
+                
                 downloadBtn.href = data.download_url;
                 
                 // Auto trigger download after a short delay

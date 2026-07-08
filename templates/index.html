@@ -16,38 +16,75 @@
             <p>Upload your daily Excel and PDF to automatically highlight room numbers.</p>
         </header>
 
-        <form id="upload-form">
-            <div class="upload-area" id="excel-area" onclick="document.getElementById('excel_file').click()">
-                <input type="file" id="excel_file" name="excel_file" accept=".xlsx, .xls, .csv" required hidden>
-                <div class="upload-content">
-                    <span class="icon">📊</span>
-                    <h3>Select Excel File</h3>
-                    <p class="file-name" id="excel-name">Tap to select your list</p>
-                </div>
-            </div>
-
-            <div class="upload-area" id="pdf-area" onclick="document.getElementById('pdf_file').click()">
-                <input type="file" id="pdf_file" name="pdf_file" accept=".pdf" required hidden>
-                <div class="upload-content">
-                    <span class="icon">📄</span>
-                    <h3>Select PDF File</h3>
-                    <p class="file-name" id="pdf-name">Tap to select the report</p>
-                </div>
-            </div>
-
-            <button type="submit" id="submit-btn" disabled>Highlight PDF</button>
-        </form>
-
-        <div id="status" class="hidden">
-            <div class="spinner"></div>
-            <p id="status-text">Processing your files...</p>
+        <div id="password-container" class="password-box">
+            <h3>Enter Access Code</h3>
+            <input type="password" id="password-input" placeholder="Password..." />
+            <button id="password-btn">Unlock App</button>
+            <p id="password-error" style="color: #ff6b6b; font-size: 0.9rem; margin-top: 10px; display: none;">Incorrect password</p>
         </div>
 
-        <div id="result" class="hidden">
-            <div class="success-icon">✅</div>
-            <p id="result-text">Success!</p>
-            <a id="download-btn" href="#" class="btn primary">Download PDF</a>
-            <button id="reset-btn" class="btn secondary">Start Over</button>
+        <div id="app-container" style="display: none;">
+            <form id="upload-form">
+                <div class="upload-area" id="excel-area" onclick="document.getElementById('excel_file').click()">
+                    <input type="file" id="excel_file" name="excel_file" accept=".xlsx, .xls, .csv" required hidden>
+                    <div class="upload-content">
+                        <span class="icon">📊</span>
+                        <h3>Select Excel File</h3>
+                        <p class="file-name" id="excel-name">Tap to select your list</p>
+                    </div>
+                </div>
+
+                <div class="upload-area" id="pdf-area" onclick="document.getElementById('pdf_file').click()">
+                    <input type="file" id="pdf_file" name="pdf_file" accept=".pdf" required hidden>
+                    <div class="upload-content">
+                        <span class="icon">📄</span>
+                        <h3>Select PDF File</h3>
+                        <p class="file-name" id="pdf-name">Tap to select the report</p>
+                    </div>
+                </div>
+
+                <button type="submit" id="submit-btn" disabled>Highlight PDF</button>
+            </form>
+
+            <div id="status" class="hidden">
+                <div class="spinner"></div>
+                <p id="status-text">Processing your files...</p>
+            </div>
+
+            <div id="result" class="hidden">
+                <div class="success-icon">✅</div>
+                <h2 style="margin-bottom: 20px;">Processing Complete!</h2>
+                
+                <div class="summary-grid">
+                    <div class="stat-box">
+                        <h4 id="stat-total">0</h4>
+                        <p>Total Rooms</p>
+                    </div>
+                    <div class="stat-box">
+                        <h4 id="stat-green" style="color: #4ade80;">0</h4>
+                        <p>Green Rooms</p>
+                    </div>
+                    <div class="stat-box">
+                        <h4 id="stat-brackets" style="color: #a78bfa;">0</h4>
+                        <p>Linked Groups</p>
+                    </div>
+                    <div class="stat-box">
+                        <h4 id="stat-presentations">0</h4>
+                        <p>Presentations</p>
+                    </div>
+                    <div class="stat-box">
+                        <h4 id="stat-promos" style="color: #fca5a5;">0</h4>
+                        <p>Excel Promos</p>
+                    </div>
+                    <div class="stat-box">
+                        <h4 id="stat-certs" style="color: #fde047;">0</h4>
+                        <p>Excel Certs</p>
+                    </div>
+                </div>
+
+                <a id="download-btn" href="#" class="btn primary" style="margin-top: 25px;">Download PDF</a>
+                <button id="reset-btn" class="btn secondary">Start Over</button>
+            </div>
         </div>
     </div>
 

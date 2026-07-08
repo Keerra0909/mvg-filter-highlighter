@@ -207,3 +207,12 @@ button[type="submit"]:not(:disabled):hover {
 .btn.secondary:hover {
     background: rgba(255, 255, 255, 0.15);
 }
+
+.password-box { text-align: center; padding: 2rem; background: rgba(255, 255, 255, 0.02); border-radius: 16px; border: 1px solid var(--surface-border); }
+.password-box input { width: 100%; padding: 1rem; margin: 1rem 0; border-radius: 8px; border: 1px solid var(--surface-border); background: rgba(0,0,0,0.2); color: white; text-align: center; font-size: 1.2rem; }
+.password-box button { width: 100%; padding: 1rem; border-radius: 8px; background: #3b82f6; color: white; font-weight: bold; border: none; cursor: pointer; }
+.summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; text-align: left; }
+.stat-box { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid var(--surface-border); text-align: center; }
+.stat-box h4 { font-size: 1.8rem; margin-bottom: 5px; }
+.stat-box p { font-size: 0.85rem; color: var(--text-muted); }
+
