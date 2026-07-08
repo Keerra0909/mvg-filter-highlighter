@@ -478,7 +478,8 @@ def highlight_pdf(pdf_path, room_data, output_path):
         'total_promos': pdf_promos,
         'total_certs': pdf_certs,
         'new_members': list(new_members),
-        'checkouts': list(checkouts)
+        'checkouts': list(checkouts),
+        'processed_rooms_list': list(processed_rooms)
     }
 
 @app.route('/')
@@ -515,9 +516,12 @@ def process_files():
         # 2. Highlight PDF
         stats = highlight_pdf(pdf_path, rooms, output_pdf_path)
         
-        # Add Excel-based duplicate stats
-        stats['duplicates'] = duplicates
-        stats['total_green'] = len(rooms)
+        # Filter duplicates: Only show duplicates if that room was actually found in the PDF
+        processed_rooms_set = set(stats['processed_rooms_list'])
+        stats['duplicates'] = [d for d in duplicates if d in processed_rooms_set]
+        
+        # Remove the temporary list so we don't send it to the frontend
+        del stats['processed_rooms_list']
         
         # 3. Clean up input files
         os.remove(excel_path)
