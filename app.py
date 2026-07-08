@@ -582,7 +582,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                     text_str = "* " + ", ".join(linked_rooms)
                     text_x = r['room_x1'] + r['offset_x'] + 5
                     # Use a dark golden-yellow so it's visible on white paper
-                    page.insert_text(fitz.Point(text_x, r['y1'] - 1), text_str, fontsize=12, color=(0.85, 0.65, 0.0))
+                    page.insert_text(fitz.Point(text_x, r['y1'] - 1), text_str, fontsize=8.5, color=(0.85, 0.65, 0.0))
 
     # Pass 4: Draw Family Suite (F.S.) brackets
     from collections import defaultdict
