@@ -215,8 +215,11 @@ def highlight_pdf(pdf_path, room_data, output_path):
                 
                 is_kids_only = False
                 if len(line_words) >= 2:
-                    if line_words[0] == '0' and line_words[1].isdigit() and int(line_words[1]) > 0:
-                        is_kids_only = True
+                    # Check the first 3 words in case there is a reservation number before the adults/minors
+                    for i in range(min(3, len(line_words) - 1)):
+                        if line_words[i] == '0' and line_words[i+1].isdigit() and int(line_words[i+1]) > 0:
+                            is_kids_only = True
+                            break
                         
                 # Check for F-Suite Candidates
                 family_id = next((w2[4].replace(',', '').strip().lower() for w2 in line_words_raw if ',' in w2[4]), None)
@@ -279,7 +282,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                 
                 final_color = 'none'
                 
-                if has_highlight or is_checked_out or is_transfer:
+                if has_highlight or is_checked_out or is_transfer or is_kids_only:
                     if has_highlight:
                         rect = fitz.Rect(w[0], w[1], w[2], w[3])
                         annot = page.add_highlight_annot(rect)
@@ -305,7 +308,6 @@ def highlight_pdf(pdf_path, room_data, output_path):
                             
                         annot.update()
                         
-                    # Handle text insertions
                     # Handle text insertions
                     offset_x = 12
                     if is_checked_out and final_color == 'green':
