@@ -215,8 +215,8 @@ def highlight_pdf(pdf_path, room_data, output_path):
                 
                 is_kids_only = False
                 if len(line_words) >= 2:
-                    # Check the first 3 words in case there is a reservation number before the adults/minors
-                    for i in range(min(3, len(line_words) - 1)):
+                    # Scan the whole line for '0' adults followed by '>0' minors
+                    for i in range(len(line_words) - 1):
                         if line_words[i] == '0' and line_words[i+1].isdigit() and int(line_words[i+1]) > 0:
                             is_kids_only = True
                             break
