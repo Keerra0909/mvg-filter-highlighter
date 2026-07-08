@@ -598,11 +598,9 @@ def highlight_pdf(pdf_path, room_data, output_path):
         'total_promos': pdf_promos,
         'total_certs': pdf_certs,
         'total_super_shots': total_super_shots,
-        'stats': {
-            'new_members': sorted(list(new_members)),
-            'checkouts': sorted(list(checkouts)),
-            'duplicates': duplicates
-        }
+        'new_members': sorted(list(new_members)),
+        'checkouts': sorted(list(checkouts)),
+        'processed_rooms_list': list(processed_rooms)
     }
 
 @app.route('/')
