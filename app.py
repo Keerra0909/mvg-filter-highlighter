@@ -206,7 +206,15 @@ def highlight_pdf(pdf_path, room_data, output_path):
             if is_in_column and word_text.isdigit() and len(word_text) >= 3:
                 # Check if this line contains MVG or the special rates in the PDF
                 # Strict line words for precise status matching (prevents Checked Out / Due Out collisions)
-                line_words = [w2[4].lower() for w2 in words if abs(w2[1] - w[1]) < 5]
+                line_words_raw = [w2 for w2 in words if abs(w2[1] - w[1]) < 5]
+                line_words_raw.sort(key=lambda x: x[0])
+                line_words = [w2[4].lower() for w2 in line_words_raw]
+                
+                is_kids_only = False
+                if len(line_words) >= 2:
+                    if line_words[0] == '0' and line_words[1].isdigit() and int(line_words[1]) > 0:
+                        is_kids_only = True
+                
                 line_text = " ".join(line_words)
                 
                 # Wide line words to catch wrapped text in the Agency / Company columns
@@ -262,12 +270,19 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         annot.update()
                         
                     # Handle text insertions
+                    # Handle text insertions
+                    offset_x = 12
                     if is_checked_out and final_color == 'green':
-                        page.insert_text(fitz.Point(w[2] + 12, w[3] - 2), "C.O", fontsize=8, color=(1, 0, 0))
+                        page.insert_text(fitz.Point(w[2] + offset_x, w[3] - 2), "C.O", fontsize=8, color=(1, 0, 0))
+                        offset_x += 18
                         
                     if is_neteurgt:
-                        offset_x = 32 if not (is_checked_out and final_color == 'green') else 45
                         page.insert_text(fitz.Point(w[2] + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0, 0, 0))
+                        offset_x += 25
+                        
+                    if is_kids_only:
+                        page.insert_text(fitz.Point(w[2] + offset_x, w[3] - 2), "KIDS", fontsize=8, color=(0.53, 0.81, 0.98))
+                        offset_x += 20
                         
                     # Handle underline for checked out
                     if is_checked_out:
