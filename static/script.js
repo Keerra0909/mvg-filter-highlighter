@@ -126,10 +126,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     if (data.stats.checkouts && data.stats.checkouts.length > 0) {
                         document.getElementById('stat-checkouts').textContent = data.stats.checkouts.join(', ');
-                        document.getElementById('label-checkouts').textContent = `${data.stats.checkouts.length} Check Outs`;
+                        document.getElementById('label-checkouts').textContent = `${data.stats.checkouts.length} Checked Out`;
                     } else {
                         document.getElementById('stat-checkouts').textContent = 'None';
-                        document.getElementById('label-checkouts').textContent = 'Check Outs';
+                        document.getElementById('label-checkouts').textContent = 'Checked Out';
                     }
                 }
                 
