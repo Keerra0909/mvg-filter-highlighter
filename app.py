@@ -579,9 +579,10 @@ def highlight_pdf(pdf_path, room_data, output_path):
             if is_multi_page:
                 linked_rooms = [r2['room'] for r2 in rooms if r2['room'] != r['room']]
                 if linked_rooms:
-                    text_str = "★ " + ", ".join(linked_rooms)
+                    text_str = "* " + ", ".join(linked_rooms)
                     text_x = r['room_x1'] + r['offset_x'] + 5
-                    page.insert_text(fitz.Point(text_x, r['y1'] - 2), text_str, fontsize=9, color=(1.0, 0.4, 0.7))
+                    # Use a dark golden-yellow so it's visible on white paper
+                    page.insert_text(fitz.Point(text_x, r['y1'] - 1), text_str, fontsize=12, color=(0.85, 0.65, 0.0), fontname="helv-bo")
 
     # Pass 4: Draw Family Suite (F.S.) brackets
     from collections import defaultdict
