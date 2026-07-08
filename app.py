@@ -128,6 +128,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
     highlight_color = (0.5, 1.0, 0.5) # Light green color
     red_color = (1.0, 0.4, 0.4) # Light red color
 
+    total_highlights = 0
     total_green = 0
     total_presentations = 0
     total_super_shots = 0
