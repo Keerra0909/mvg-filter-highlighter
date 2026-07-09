@@ -315,10 +315,6 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                         if is_neteurgt or is_netcysgt or is_to_eu:
                             annot.set_colors(stroke=(1, 1, 0)) # Yellow
                             final_color = 'yellow'
-                            # If it's a NETCYSGT but doesn't already say TO EU, let's draw it!
-                            if is_netcysgt and not is_to_eu:
-                                # w[2] is the right edge of the room number. Draw it just to the right of the room number.
-                                page.insert_text(fitz.Point(w[2] + 20, w[3]), "TO EU", fontname="helv", fontsize=8, color=(0, 0, 0))
                         elif in_excel:
                             annot.set_colors(stroke=highlight_color) # green
                             final_color = 'green'
@@ -342,7 +338,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "C.O", fontsize=8, color=(1, 0, 0))
                         offset_x += 18
                         
-                    if is_neteurgt:
+                    if (is_neteurgt or is_netcysgt) and not is_to_eu:
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0, 0, 0))
                         offset_x += 25
                         
