@@ -85,9 +85,22 @@ document.addEventListener('DOMContentLoaded', () => {
         screen.style.display = 'flex';
     }
 
+    // Check for 10-minute active session on load
+    const authTimestamp = localStorage.getItem('mvg_auth_timestamp');
+    const TEN_MINUTES = 10 * 60 * 1000;
+    if (authTimestamp && (Date.now() - parseInt(authTimestamp) < TEN_MINUTES)) {
+        // Session is valid. Extend it and skip password screen.
+        localStorage.setItem('mvg_auth_timestamp', Date.now().toString());
+        showScreen(screenLobby);
+    } else {
+        // Expired or no session
+        localStorage.removeItem('mvg_auth_timestamp');
+    }
+
     // Step 1 → Step 2: Password check
     passwordBtn.addEventListener('click', () => {
         if (passwordInput.value.trim().toUpperCase() === 'MVG2026') {
+            localStorage.setItem('mvg_auth_timestamp', Date.now().toString());
             showScreen(screenLobby);
         } else {
             passwordError.style.display = 'block';
