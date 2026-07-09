@@ -327,7 +327,13 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                                 checked_out_rects.append(fitz.Rect(ow[0], ow[1], ow[2], ow[3]))
                                 break
                                 
-                is_no_show = 'no' in line_words and 'show' in line_words
+                is_no_show = False
+                no_show_rects = []
+                if 'no' in line_words and 'show' in line_words:
+                    is_no_show = True
+                    for w2 in line_words_raw:
+                        if w2[4].lower() in ['no', 'show', 'noshow']:
+                            no_show_rects.append(fitz.Rect(w2[0], w2[1], w2[2], w2[3]))
                                 
                 is_transfer = 'transfer' in wide_line_text.replace(' ', '')
                 is_free = 'free' in line_words
@@ -398,6 +404,13 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                     if is_checked_out and final_color == 'green':
                         checkouts.add(word_text)
                         for rect in checked_out_rects:
+                            annot2 = page.add_underline_annot(rect)
+                            annot2.set_colors(stroke=(1, 0, 0))
+                            annot2.update()
+                            
+                    # Handle underline for no show
+                    if is_no_show and final_color == 'green':
+                        for rect in no_show_rects:
                             annot2 = page.add_underline_annot(rect)
                             annot2.set_colors(stroke=(1, 0, 0))
                             annot2.update()
