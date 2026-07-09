@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusDiv = document.getElementById('status');
     const resultDiv = document.getElementById('result');
     const downloadBtn = document.getElementById('download-btn');
-    const resetBtn = document.getElementById('reset-btn');
 
     function extractDateNumber(filename) {
         // Try to match YYYY-MM-DD format (usually Excel) and extract the Day (DD)
@@ -224,24 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('An error occurred: ' + error.message);
             }
         }
-    });
-
-    resetBtn.addEventListener('click', () => {
-        form.reset();
-        const errorBox = document.getElementById('smart-error');
-        if (errorBox) errorBox.classList.add('hidden');
-        excelName.textContent = 'Tap to select your list';
-        pdfName.textContent = 'Tap to select the report';
-        excelArea.classList.remove('has-file');
-        pdfArea.classList.remove('has-file');
-        checkFiles();
-        
-        resultDiv.classList.add('hidden');
-        form.classList.remove('hidden');
-
-        // Go back to lobby selection
-        document.querySelectorAll('.lobby-card').forEach(c => c.classList.remove('selected'));
-        showScreen(screenLobby);
     });
 
     const downloadImgBtn = document.getElementById('download-img-btn');
