@@ -11,18 +11,28 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB max
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-def extract_rooms_from_excel(excel_path):
+def extract_rooms_from_excel(excel_path, target_lobby=None):
     try:
         dfs = pd.read_excel(excel_path, header=None, sheet_name=None)
     except Exception as e:
         print(f"Error reading Excel: {e}")
-        return {}
+        return {}, []
     
     room_data = {}
     seen_rooms = set()
     duplicate_rooms = set()
     
     for sheet_name, df in dfs.items():
+        if target_lobby:
+            t_lobby = target_lobby.lower()
+            s_name = sheet_name.lower()
+            if t_lobby == 'grand' and 'grand' not in s_name and 'zmgr' not in s_name:
+                continue
+            if t_lobby == 'sunrise' and 'sunrise' not in s_name and 'zmsu' not in s_name:
+                continue
+            if t_lobby == 'nizuc' and 'nizuc' not in s_name and 'zmni' not in s_name:
+                continue
+                
         print(f"Processing sheet: {sheet_name}")
         # 1. Search the first 20 rows to find the actual header row and Room column
         header_row_idx = None
@@ -123,7 +133,7 @@ def extract_rooms_from_excel(excel_path):
     print(f"Extracted {len(room_data)} unique rooms")
     return room_data, list(duplicate_rooms)
 
-def highlight_pdf(pdf_path, room_data, output_path):
+def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
     doc = fitz.open(pdf_path)
     highlight_color = (0.5, 1.0, 0.5) # Light green color
     red_color = (1.0, 0.4, 0.4) # Light red color
@@ -171,7 +181,8 @@ def highlight_pdf(pdf_path, room_data, output_path):
             membership_x0 = last_membership_x0
             
         grupo_x0 = None
-        grupo_words = [w for w in words if "grupo" in w[4].lower() and w[1] < header_y_threshold]
+        # Search for 'Grupo' or 'Party' column header — different lobbies use different names
+        grupo_words = [w for w in words if ("grupo" in w[4].lower() or "party" in w[4].lower()) and w[1] < header_y_threshold]
         if grupo_words:
             grupo_x0 = grupo_words[0][0]
             last_grupo_x0 = grupo_x0
@@ -220,15 +231,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         if line_words[i] == '0' and line_words[i+1].isdigit() and int(line_words[i+1]) > 0:
                             is_kids_only = True
                             break
-                        
-                # Check for F-Suite Candidates
-                family_id = next((w2[4].replace(',', '').strip().lower() for w2 in line_words_raw if ',' in w2[4]), None)
-                if not family_id:
-                    # Fallback to the 7-9 digit reservation/confirmation number on the left side
-                    for w2 in line_words_raw:
-                        if w2[4].isdigit() and 7 <= len(w2[4]) <= 9:
-                            family_id = w2[4]
-                            break
+
                 room_idx = -1
                 for i, w2 in enumerate(line_words_raw):
                     if w2[0] == w[0] and w2[1] == w[1]:
@@ -245,40 +248,60 @@ def highlight_pdf(pdf_path, room_data, output_path):
                             type_word = line_words_raw[room_idx - 2]
                             room_type = type_word[4].upper()
                             
-                if family_id and room_type.startswith('F'):
-                    f_suite_candidates.append({
-                        'page_idx': page_num,
-                        'family_id': family_id,
-                        'y0': w[1],
-                        'y1': w[3],
-                        'bracket_x': w[2] + 35  # Safe distance for bracket
-                    })
-                
+                            
                 line_text = " ".join(line_words)
                 
                 # Wide line words to catch wrapped text in the Agency / Company columns
                 wide_line_words = [w2[4].lower() for w2 in words if abs(w2[1] - w[1]) < 15]
                 wide_line_text = " ".join(wide_line_words)
                 
-                is_mvg_pdf = 'mvg' in wide_line_text and 'moon' in wide_line_text and 'vacation' in wide_line_text
+                is_mvg_pdf = ('mvg' in wide_line_text and 'moon' in wide_line_text and 'vacation' in wide_line_text) or ('main' in wide_line_text and 'moon' in wide_line_text)
                 is_especiales = 'especial' in wide_line_text
                 is_cortesia = 'cortesia' in wide_line_text and 'palace' in wide_line_text
                 is_travel = 'travel' in wide_line_text and 'agent' in wide_line_text
                 is_employee = 'employee' in wide_line_text and 'special' in wide_line_text
                 is_rss = 'rss' in wide_line_text and 'pro' in wide_line_text
                 is_agency_direct = 'agency' in wide_line_text and 'direct' in wide_line_text
-                is_neteurgt = 'neteurgt' in wide_line_text
+                is_neteurgt = 'neteurg' in wide_line_text
+                is_netcysgt = 'netcys' in wide_line_text
+                is_wow = 'wow' in wide_line_words
+                is_uso_casa = 'uso' in wide_line_text and 'casa' in wide_line_text
+                is_web_main_certmvg = 'web' in wide_line_text and 'main' in wide_line_text and 'certmvg' in wide_line_text
+                is_to_eu = 'to' in line_words and 'eu' in line_words
                 
-                is_checked_out = 'checked out' in line_text
-                is_transfer = 'transfer' in line_text
+                is_checked_out = False
+                checked_out_rects = []
                 
-                strong_red = is_mvg_pdf or is_especiales or is_cortesia or is_travel or is_employee or is_rss or is_agency_direct
+                # First check if it's on the exact same line
+                if 'checked out' in line_text or 'checkedout' in line_text:
+                    is_checked_out = True
+                    for w2 in line_words_raw:
+                        if w2[4].lower() in ["checked", "out", "checkedout", "checked-out"]:
+                            checked_out_rects.append(fitz.Rect(w2[0], w2[1], w2[2], w2[3]))
+                else:
+                    checked_words = [w2 for w2 in words if w2[4].lower() == 'checked' and abs(w2[1] - w[1]) < 15]
+                    out_words = [w2 for w2 in words if w2[4].lower() == 'out' and abs(w2[1] - w[1]) < 15]
+                    for cw in checked_words:
+                        for ow in out_words:
+                            # CHECKED must be above OUT and roughly aligned horizontally
+                            if cw[1] <= ow[1] + 2 and abs(cw[0] - ow[0]) < 20:
+                                is_checked_out = True
+                                checked_out_rects.append(fitz.Rect(cw[0], cw[1], cw[2], cw[3]))
+                                checked_out_rects.append(fitz.Rect(ow[0], ow[1], ow[2], ow[3]))
+                                break
+                                
+                is_transfer = 'transfer' in wide_line_text.replace(' ', '')
+                
+                strong_red = is_mvg_pdf or is_especiales or is_cortesia or is_travel or is_employee or is_rss or is_agency_direct or is_neteurgt or is_netcysgt or is_uso_casa or is_web_main_certmvg
+                if lobby in ['nizuc', 'grand'] and is_wow:
+                    strong_red = True
+                    
                 weak_red = any(c in line_words for c in ['va', 'vc', 'm', 'vd', 'vr'])
                 
                 in_excel = word_text in room_data
                 data = room_data.get(word_text, {'underline': False, 'certificado': False, 'promo': False, 'mvg': False})
                 
-                has_highlight = in_excel or strong_red or weak_red or is_neteurgt
+                has_highlight = in_excel or strong_red or weak_red or is_neteurgt or is_netcysgt or is_to_eu
                 
                 final_color = 'none'
                 
@@ -288,12 +311,13 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         annot = page.add_highlight_annot(rect)
                         
                         # Apply colors based on priority
-                        if is_neteurgt:
+                        if is_neteurgt or is_netcysgt or is_to_eu:
                             annot.set_colors(stroke=(1, 1, 0)) # Yellow
                             final_color = 'yellow'
-                        elif strong_red or data.get('mvg', False):
-                            annot.set_colors(stroke=red_color)
-                            final_color = 'red'
+                            # If it's a NETCYSGT but doesn't already say TO EU, let's draw it!
+                            if is_netcysgt and not is_to_eu:
+                                # w[2] is the right edge of the room number. Draw it just to the right of the room number.
+                                page.insert_text(fitz.Point(w[2] + 20, w[3]), "TO EU", fontname="helv", fontsize=8, color=(0, 0, 0))
                         elif in_excel:
                             annot.set_colors(stroke=highlight_color) # green
                             final_color = 'green'
@@ -302,7 +326,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                                 total_green += 1
                                 if data['underline']:
                                     total_presentations += 1
-                        elif weak_red:
+                        elif strong_red or data.get('mvg', False) or weak_red:
                             annot.set_colors(stroke=red_color)
                             final_color = 'red'
                             
@@ -325,23 +349,22 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "KIDS", fontsize=8, color=(0.53, 0.81, 0.98))
                         offset_x += 20
                         
+
                     # Handle underline for checked out
-                    if is_checked_out:
+                    if is_checked_out and final_color == 'green':
                         checkouts.add(word_text)
-                        for w2 in words:
-                            if abs(w2[1] - w[1]) < 5 and w2[4].lower() in ["checked", "out", "checkedout", "checked-out"]:
-                                rect2 = fitz.Rect(w2[0], w2[1], w2[2], w2[3])
-                                annot2 = page.add_underline_annot(rect2)
-                                annot2.set_colors(stroke=(1, 0, 0))
-                                annot2.update()
+                        for rect in checked_out_rects:
+                            annot2 = page.add_underline_annot(rect)
+                            annot2.set_colors(stroke=(1, 0, 0))
+                            annot2.update()
                                 
                     # Handle underline for transfer
                     if is_transfer:
                         for w2 in words:
-                            if abs(w2[1] - w[1]) < 5 and 'transfer' in w2[4].lower():
+                            if abs(w2[1] - w[1]) < 15 and w2[4].lower() in ['transfer', 'transfe']:
                                 rect2 = fitz.Rect(w2[0], w2[1], w2[2], w2[3])
                                 annot2 = page.add_underline_annot(rect2)
-                                annot2.set_colors(stroke=(1.0, 0.65, 0.0)) # Orange
+                                annot2.set_colors(stroke=(1.0, 1.0, 0.0)) # Yellow
                                 annot2.update()
                     
                     if data['underline']:
@@ -386,7 +409,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         else:
                             print(f"WARNING: Could not find Room Type text for room {word_text}")
                         
-                    # Highlight 'M' and write N.M.
+                    # Highlight 'M' and write N.M. at end of row (after Language column)
                     if is_transfer_m_rule:
                         m_word = None
                         for w2 in words:
@@ -397,31 +420,55 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         if m_word:
                             rect_m = fitz.Rect(m_word[0], m_word[1], m_word[2], m_word[3])
                             annot_m = page.add_highlight_annot(rect_m)
-                            annot_m.set_colors(stroke=red_color)
+                            annot_m.set_colors(stroke=(1, 0, 0)) # Red highlight
                             annot_m.update()
-                            page.insert_text(fitz.Point(m_word[2] + 12, m_word[3] - 2), "N.M.", fontsize=8, color=(1, 0, 0))
+                            # Place N.M. at the far right end of the full row (after Language col)
+                            full_row_words = [w2 for w2 in words if abs(w2[1] - w[1]) < 15]
+                            nm_x = max(w2[2] for w2 in full_row_words) + 6 if full_row_words else m_word[2] + 12
+                            page.insert_text(fitz.Point(nm_x, m_word[3] - 2), "N.M.", fontsize=8, color=(1, 0, 0))
                             
                     # Extract membership info for bracket linking
                     membership_text = ""
                     membership_right_edge = None
                     if membership_x0 is not None:
-                        # Fixed safe width of 55 points (fits a 7-digit number perfectly) to avoid Room Type column
-                        mem_max_x = membership_x0 + 55
-                        m_words = [w2 for w2 in words if abs(w2[1] - w[1]) < 5 and (membership_x0 - 25) <= w2[0] <= mem_max_x]
+                        import re
+                        # Strict left boundary: start AT membership_x0 (never reach into Grupo column)
+                        # Strict right boundary: stop before Room Type header
+                        mem_left = membership_x0
+                        mem_right = membership_x0 + 75
+                        if room_type_header_x0 and room_type_header_x0 > membership_x0:
+                            mem_right = min(mem_right, room_type_header_x0 - 5)
+                        w_mid = (w[1] + w[3]) / 2
+                        # Require the middle of the Room text to intersect the Y-bounds of the membership text
+                        m_words = [w2 for w2 in words if w2[1] - 3 <= w_mid <= w2[3] + 3 and mem_left <= w2[0] <= mem_right]
                         if m_words:
-                            membership_text = "".join([mw[4] for mw in m_words]).strip()
-                            membership_right_edge = max(mw[2] for mw in m_words)
+                            raw_mem = "".join([mw[4] for mw in m_words]).strip()
+                            mem_match = re.search(r'\d{4,}', raw_mem)
+                            if mem_match and "OUT" not in raw_mem.upper():
+                                membership_text = mem_match.group(0)
+                                membership_right_edge = max(mw[2] for mw in m_words)
+                        print(f"  Room {word_text}: mem_left={mem_left:.1f}, mem_right={mem_right:.1f}, raw='{raw_mem if m_words else ''}', membership='{membership_text}'")
                             
                     # Extract Grupo/Party info for bracket linking
                     grupo_text = ""
+                    grupo_key = ""  # numeric-only key for grouping
                     grupo_right_edge = None
                     if grupo_x0 is not None:
-                        # Fixed safe width of 75 points (fits names and 8-digit numbers perfectly) to avoid Membership column
-                        grupo_max_x = grupo_x0 + 75
-                        g_words = [w2 for w2 in words if abs(w2[1] - w[1]) < 5 and (grupo_x0 - 25) <= w2[0] <= grupo_max_x]
+                        import re
+                        # Stop Grupo extraction before Membership column starts
+                        grupo_max_x = grupo_x0 + 120
+                        if membership_x0 and membership_x0 > grupo_x0:
+                            grupo_max_x = min(grupo_max_x, membership_x0 - 5)
+                        # Only grab words on the SAME line (we only need the number now, multiline names don't matter)
+                        g_words = [w2 for w2 in words if w2[1] - 3 <= w_mid <= w2[3] + 3 and (grupo_x0 - 25) <= w2[0] <= grupo_max_x]
                         if g_words:
-                            grupo_text = "".join([gw[4] for gw in g_words]).strip()
-                            grupo_right_edge = max(gw[2] for gw in g_words)
+                            raw_grp = " ".join([gw[4] for gw in sorted(g_words, key=lambda x: (x[1], x[0]))]).strip()
+                            # VALIDATION: must contain a 4+ digit sequence
+                            grp_match = re.search(r'\d{4,}', raw_grp)
+                            if grp_match and "OUT" not in raw_grp.upper():
+                                grupo_text = raw_grp
+                                grupo_key = grp_match.group(0)  # use ONLY the number for grouping
+                                grupo_right_edge = max(gw[2] for gw in g_words)
                         
                     extracted_rooms_membership.append({
                         "room": word_text,
@@ -430,6 +477,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         "membership": membership_text,
                         "bracket_x": membership_right_edge + 8 if membership_right_edge else (membership_x0 + 50 if membership_x0 else w[0] - 50),
                         "grupo": grupo_text,
+                        "grupo_key": grupo_key,  # numeric-only for grouping
                         "g_bracket_x": grupo_right_edge + 8 if grupo_right_edge else (grupo_x0 + 70 if grupo_x0 else w[0] - 100),
                         "page_idx": page.number,
                         "y0": w[1],
@@ -437,7 +485,9 @@ def highlight_pdf(pdf_path, room_data, output_path):
                         "line_words_raw": line_words_raw,
                         "type_word": type_word,
                         "is_mvg": is_mvg_pdf,
-                        "offset_x": offset_x
+                        "offset_x": offset_x,
+                        "membership_x0": membership_x0,
+                        "grupo_x0": grupo_x0
                     })
                         
                     total_highlights += 1
@@ -451,100 +501,45 @@ def highlight_pdf(pdf_path, room_data, output_path):
     
     for r in extracted_rooms_membership:
         m_num = r['membership']
-        if m_num and len(m_num) >= 4: # Ignore blank or tiny memberships
+        if m_num and len(m_num) >= 4:
             page_membership_groups[r['page_idx']][m_num].append(r)
             
-        g_text = r['grupo']
-        if g_text and len(g_text) >= 4:
-            page_grupo_groups[r['page_idx']][g_text].append(r)
+        # Use grupo_key (numeric only) so '19244015 GARCI' and '19244015 PATEL' group together
+        g_key = r.get('grupo_key', '')
+        if g_key and len(g_key) >= 4:
+            page_grupo_groups[r['page_idx']][g_key].append(r)
             
     # Global groupings for cross-page Super Shots
     global_membership_groups = defaultdict(list)
     global_grupo_groups = defaultdict(list)
+    
     for r in extracted_rooms_membership:
         if r['membership'] and len(r['membership']) >= 4:
             global_membership_groups[r['membership']].append(r)
-        if r['grupo'] and len(r['grupo']) >= 4:
-            global_grupo_groups[r['grupo']].append(r)
+        g_key = r.get('grupo_key', '')
+        if g_key and len(g_key) >= 4:
+            global_grupo_groups[g_key].append(r)
             
+    # SUPER SHOT RULE: A group qualifies ONLY if it has:
+    #   - At least one room that is RED and is_mvg (occupied MVG room in PDF)
+    #   - At least one room that is GREEN (available room in Excel)
+    # Simply having MVG in agency text is NOT enough — the room must actually be highlighted RED.
     super_shot_memberships = set()
     for m_num, rooms in global_membership_groups.items():
-        if any(r['color'] == 'green' for r in rooms) and any(r['is_mvg'] for r in rooms):
+        has_red_mvg = any(r['color'] == 'red' and r['is_mvg'] for r in rooms)
+        has_green   = any(r['color'] == 'green' for r in rooms)
+        if has_red_mvg and has_green:
             super_shot_memberships.add(m_num)
             
     super_shot_grupos = set()
-    for g_text, rooms in global_grupo_groups.items():
-        if any(r['color'] == 'green' for r in rooms) and any(r['is_mvg'] for r in rooms):
-            super_shot_grupos.add(g_text)
+    for g_key, rooms in global_grupo_groups.items():
+        has_red_mvg = any(r['color'] == 'red' and r['is_mvg'] for r in rooms)
+        has_green   = any(r['color'] == 'green' for r in rooms)
+        if has_red_mvg and has_green:
+            super_shot_grupos.add(g_key)
+
             
-    # Distinct bracket colors
-    bracket_colors = [
-        (0.6, 0.2, 0.8), # Purple
-        (0.0, 0.6, 0.6), # Teal
-        (1.0, 0.5, 0.0), # Orange
-        (0.9, 0.2, 0.6), # Pink
-        (0.0, 0.4, 0.8), # Deep Blue
-    ]
-    
-    # Pass 3: Draw brackets
-    total_linked_groups = 0
-    for page_idx, groups in page_membership_groups.items():
-        page = doc[page_idx]
-        color_idx = 0
-        
-        for m_num, rooms in groups.items():
-            if len(rooms) > 1:
-                # Check if group has at least one Green room
-                has_green = any(r['color'] == 'green' for r in rooms)
-                if has_green:
-                    # Filter rooms: we only bracket rooms that are green or red
-                    bracket_rooms = [r for r in rooms if r['color'] in ['green', 'red']]
-                    if len(bracket_rooms) > 1:
-                        total_linked_groups += 1
-                        # Draw bracket for these rooms
-                        min_y = min(r['y0'] for r in bracket_rooms)
-                        max_y = max(r['y1'] for r in bracket_rooms)
-                        
-                        bracket_color = bracket_colors[color_idx % len(bracket_colors)]
-                        color_idx += 1
-                        
-                        right_x = max(r['bracket_x'] for r in bracket_rooms)
-                        
-                        # Draw vertical line spanning from top room to bottom room
-                        page.draw_line(fitz.Point(right_x, min_y + 5), fitz.Point(right_x, max_y - 5), color=bracket_color, width=2)
-                        
-                        
-                        # Draw horizontal ticks pointing back to each room
-                        for br in bracket_rooms:
-                            mid_y = (br['y0'] + br['y1']) / 2
-                            page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=bracket_color, width=1.5)
-
-    # Pass 3b: Draw Grupo/Party brackets
-    teal_color = (0.0, 0.5, 0.5)
-    for page_idx, groups in page_grupo_groups.items():
-        page = doc[page_idx]
-        
-        for g_text, rooms in groups.items():
-            if len(rooms) > 1:
-                has_green = any(r['color'] == 'green' for r in rooms)
-                if has_green:
-                    bracket_rooms = [r for r in rooms if r['color'] in ['green', 'red']]
-                    if len(bracket_rooms) > 1:
-                        total_linked_groups += 1
-                        min_y = min(r['y0'] for r in bracket_rooms)
-                        max_y = max(r['y1'] for r in bracket_rooms)
-                        
-                        right_x = max(r['g_bracket_x'] for r in bracket_rooms)
-                        
-                        # Draw vertical line
-                        page.draw_line(fitz.Point(right_x, min_y + 5), fitz.Point(right_x, max_y - 5), color=teal_color, width=2)
-                        
-                        # Draw horizontal ticks
-                        for br in bracket_rooms:
-                            mid_y = (br['y0'] + br['y1']) / 2
-                            page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=teal_color, width=1.5)
-
-    # Pass 5: Global Super Shots
+    # Pass 2.5: Apply Global Super Shots BEFORE drawing brackets
     super_shot_global_groups = []
     processed_ss_rooms = set()
     
@@ -562,6 +557,135 @@ def highlight_pdf(pdf_path, room_data, output_path):
             super_shot_global_groups.append(rooms)
             processed_ss_rooms.add(room_ids)
             
+    # NOTE: Family Suites (f_id / same last name) are intentionally excluded from Super Shot groups
+
+    # We will filter out invalid texts before adding to groups in Pass 2
+    for rooms in super_shot_global_groups:
+        for r in rooms:
+            if r['color'] in ['green', 'red']:
+                r['color'] = 'green' # Red becomes green
+            
+    # Distinct bracket colors
+    bracket_colors = [
+        (0.6, 0.2, 0.8), # Purple
+        (0.0, 0.6, 0.6), # Teal
+        (1.0, 0.5, 0.0), # Orange
+        (0.9, 0.2, 0.6), # Pink
+        (0.0, 0.4, 0.8), # Deep Blue
+    ]
+    
+    # Pass 3: Draw brackets for membership groups
+    total_linked_groups = 0
+    for page_idx, groups in page_membership_groups.items():
+        page = doc[page_idx]
+        color_idx = 0
+        
+        for m_num, rooms in groups.items():
+            if len(rooms) > 1:
+                # Draw bracket for any 2+ rooms sharing membership (green+green, red+red, or mixed)
+                bracket_rooms = [r for r in rooms if r['color'] in ['green', 'red']]
+                
+                # Universal rule: Do not link if all rooms are red (must have at least one green)
+                if not any(r['color'] == 'green' for r in bracket_rooms):
+                    continue
+                    
+                if len(bracket_rooms) > 1:
+                    total_linked_groups += 1
+                    min_y = min(r['y0'] for r in bracket_rooms)
+                    max_y = max(r['y1'] for r in bracket_rooms)
+                    
+                    has_green = any(r['color'] == 'green' for r in bracket_rooms)
+                    bracket_color = bracket_colors[color_idx % len(bracket_colors)] if has_green else (0.5, 0.5, 0.5)
+                    color_idx += 1
+                    
+                    type_xs = [r['type_word'][0] for r in bracket_rooms if r['type_word']]
+                    fallback_xs = [r['room_x1'] - 40 for r in bracket_rooms]
+                    min_type_x = min(type_xs) if type_xs else min(fallback_xs)
+                    
+                    # Find rightmost text in the vertical span — adapts to any lobby layout
+                    page_words = page.get_text("words")
+                    span_words = [w for w in page_words if (min_y - 5) <= w[1] and w[3] <= (max_y + 5) and w[2] < min_type_x - 5]
+                    
+                    if span_words:
+                        right_x = max(w[2] for w in span_words) + 8
+                    else:
+                        right_x = min_type_x - 20
+                        
+                    if right_x > min_type_x - 6:
+                        right_x = min_type_x - 6
+                    
+                    # Draw vertical line spanning from top room to bottom room
+                    page.draw_line(fitz.Point(right_x, min_y + 5), fitz.Point(right_x, max_y - 5), color=bracket_color, width=2)
+                    
+                    # Draw horizontal ticks pointing at each room
+                    for br in bracket_rooms:
+                        mid_y = (br['y0'] + br['y1']) / 2
+                        page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=bracket_color, width=1.5)
+
+    # Pass 3b: Draw Grupo/Party brackets
+    grupo_colors = [
+        (0.0, 0.5, 0.5), # Teal
+        (0.8, 0.2, 0.2), # Dark Red
+        (0.2, 0.6, 0.2), # Green
+        (0.2, 0.2, 0.8), # Blue
+        (0.7, 0.4, 0.0), # Brown
+    ]
+    for page_idx, groups in page_grupo_groups.items():
+        page = doc[page_idx]
+        color_idx = 0
+        
+        for g_text, rooms in groups.items():
+            if len(rooms) > 1:
+                # Avoid double grouping if they already share a membership
+                valid_mems = [r['membership'] for r in rooms if r['membership'] and len(r['membership']) >= 4]
+                if len(valid_mems) == len(rooms) and len(set(valid_mems)) == 1:
+                    continue
+                    
+                bracket_rooms = [r for r in rooms if r['color'] in ['green', 'red']]
+                
+                # Universal rule: Do not link if all rooms are red (must have at least one green)
+                if not any(r['color'] == 'green' for r in bracket_rooms):
+                    continue
+                        
+                if len(bracket_rooms) > 1:
+                        total_linked_groups += 1
+                        bracket_color = grupo_colors[color_idx % len(grupo_colors)]
+                        color_idx += 1
+                        
+                        min_y = min(r['y0'] for r in bracket_rooms)
+                        max_y = max(r['y1'] for r in bracket_rooms)
+                        
+                        type_xs = [r['type_word'][0] for r in bracket_rooms if r['type_word']]
+                        fallback_xs = [r['room_x1'] - 40 for r in bracket_rooms]
+                        min_type_x = min(type_xs) if type_xs else min(fallback_xs)
+                        
+                        m_x0 = max([r.get('membership_x0') or 0 for r in bracket_rooms])
+                        g_x0 = max([r.get('grupo_x0') or 0 for r in bracket_rooms])
+                        boundary_x = m_x0 + 60 if m_x0 > 0 else (g_x0 + 80 if g_x0 > 0 else min_type_x - 30)
+                        
+                        # Find the absolute rightmost edge of ANY text to the left of the boundary
+                        page_words = page.get_text("words")
+                        left_words = [w for w in page_words if (min_y - 5) <= w[1] and w[3] <= (max_y + 5) and w[0] < boundary_x]
+                        
+                        if left_words:
+                            right_x = max(w[2] for w in left_words) + 14 # Extra offset for Grupo brackets
+                        else:
+                            right_x = boundary_x + 6
+                            
+                        if right_x > min_type_x - 6:
+                            right_x = min_type_x - 6
+                        
+                        # Draw vertical line
+                        page.draw_line(fitz.Point(right_x, min_y + 5), fitz.Point(right_x, max_y - 5), color=bracket_color, width=2)
+                        
+                        # Draw horizontal ticks
+                        for br in bracket_rooms:
+                            mid_y = (br['y0'] + br['y1']) / 2
+                            page.draw_line(fitz.Point(right_x, mid_y), fitz.Point(right_x - 8, mid_y), color=bracket_color, width=1.5)
+
+    # Pass 5: Global Super Shots
+    # The groups were already determined and color-mutated in Pass 2.5
+    # Here we just apply the pink agency highlight and multi-page stars
     total_super_shots = len(super_shot_global_groups)
     
     for rooms in super_shot_global_groups:
@@ -589,32 +713,6 @@ def highlight_pdf(pdf_path, room_data, output_path):
                     # Use a dark golden-yellow so it's visible on white paper
                     page.insert_text(fitz.Point(text_x, r['y1'] - 1), text_str, fontsize=8.5, color=(0.85, 0.65, 0.0))
 
-    # Pass 4: Draw Family Suite (F.S.) brackets
-    from collections import defaultdict
-    page_fsuite_groups = defaultdict(lambda: defaultdict(list))
-    
-    for r in f_suite_candidates:
-        page_fsuite_groups[r['page_idx']][r['family_id']].append(r)
-        
-    for page_idx, groups in page_fsuite_groups.items():
-        page = doc[page_idx]
-        for fid, rooms in groups.items():
-            if len(rooms) > 1:
-                min_y = min(r['y0'] for r in rooms)
-                max_y = max(r['y1'] for r in rooms)
-                right_x = max(r['bracket_x'] for r in rooms)
-                
-                # Draw vertical line (bracket)
-                page.draw_line(fitz.Point(right_x, min_y + 5), fitz.Point(right_x, max_y - 5), color=(0.0, 0.5, 0.0), width=2)
-                
-                # Draw top and bottom prongs (much longer to point clearly at the rooms)
-                page.draw_line(fitz.Point(right_x - 12, min_y + 5), fitz.Point(right_x, min_y + 5), color=(0.0, 0.5, 0.0), width=2)
-                page.draw_line(fitz.Point(right_x - 12, max_y - 5), fitz.Point(right_x, max_y - 5), color=(0.0, 0.5, 0.0), width=2)
-                
-                # Add "F.S."
-                mid_y = (min_y + max_y) / 2
-                page.insert_text(fitz.Point(right_x + 3, mid_y + 3), "F.S.", fontsize=10, color=(0.0, 0.5, 0.0))
-
     doc.save(output_path)
     doc.close()
     
@@ -623,7 +721,10 @@ def highlight_pdf(pdf_path, room_data, output_path):
     pdf_certs = sum(1 for room in processed_rooms if room_data.get(room, {}).get('certificado', False))
     
     super_shots_mvg_list = sorted(list(set([r['room'] for group in super_shot_global_groups for r in group if r['is_mvg']])))
-    super_shots_green_list = sorted(list(set([r['room'] for group in super_shot_global_groups for r in group if r['color'] == 'green'])))
+    super_shots_green_list = sorted(list(set([r['room'] for group in super_shot_global_groups for r in group if r['color'] == 'green' and not r['is_mvg']])))
+    
+    green_rooms = set(r['room'] for r in extracted_rooms_membership if r['color'] == 'green')
+    green_checkouts = [room for room in checkouts if room in green_rooms]
     
     return {
         'total_rooms_found': len(processed_rooms),
@@ -636,7 +737,7 @@ def highlight_pdf(pdf_path, room_data, output_path):
         'super_shots_mvg': super_shots_mvg_list,
         'super_shots_green': super_shots_green_list,
         'new_members': sorted(list(new_members)),
-        'checkouts': sorted(list(checkouts)),
+        'checkouts': sorted(green_checkouts),
         'processed_rooms_list': list(processed_rooms)
     }
 
@@ -666,18 +767,27 @@ def process_files():
     pdf_file.save(pdf_path)
     
     try:
+        lobby = request.form.get('lobby', 'sunrise')
+        
         # 1. Extract rooms
-        rooms, duplicates = extract_rooms_from_excel(excel_path)
+        rooms, duplicates = extract_rooms_from_excel(excel_path, target_lobby=lobby)
         if not rooms:
-            return jsonify({'error': 'Could not find any room numbers in the Excel file.'}), 400
+            return jsonify({'error': 'Could not find any room numbers in the Excel file for this lobby.'}), 400
             
         # 2. Highlight PDF
-        stats = highlight_pdf(pdf_path, rooms, output_pdf_path)
+        stats = highlight_pdf(pdf_path, rooms, output_pdf_path, lobby)
         
         # Filter duplicates: Only show duplicates if that room was actually found in the PDF
         processed_rooms_set = set(stats['processed_rooms_list'])
         stats['duplicates'] = [d for d in duplicates if d in processed_rooms_set]
         
+        stats['excel_total'] = len(rooms) + len(duplicates)
+        
+        # Add the lobby name so the frontend can display it in the summary image
+        stats['lobby'] = lobby.title()
+        if stats['lobby'] == 'Grand':
+            stats['lobby'] = 'The Grand'
+            
         # Remove the temporary list so we don't send it to the frontend
         del stats['processed_rooms_list']
         

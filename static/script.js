@@ -43,24 +43,48 @@ document.addEventListener('DOMContentLoaded', () => {
         checkFiles();
     });
 
-    const passwordContainer = document.getElementById('password-container');
-    const appContainer = document.getElementById('app-container');
-    const passwordInput = document.getElementById('password-input');
-    const passwordBtn = document.getElementById('password-btn');
-    const passwordError = document.getElementById('password-error');
+    // ── Screen references ──
+    const screenPassword = document.getElementById('screen-password');
+    const screenLobby    = document.getElementById('screen-lobby');
+    const screenApp      = document.getElementById('screen-app');
 
+    const passwordInput  = document.getElementById('password-input');
+    const passwordBtn    = document.getElementById('password-btn');
+    const passwordError  = document.getElementById('password-error');
+    const selectedLobby  = document.getElementById('selected-lobby');
+
+    function showScreen(screen) {
+        [screenPassword, screenLobby, screenApp].forEach(s => s.style.display = 'none');
+        screen.style.display = 'flex';
+    }
+
+    // Step 1 → Step 2: Password check
     passwordBtn.addEventListener('click', () => {
-        if (passwordInput.value === 'MVG2026') {
-            passwordContainer.style.display = 'none';
-            appContainer.style.display = 'block';
+        if (passwordInput.value.trim().toUpperCase() === 'MVG2026') {
+            showScreen(screenLobby);
         } else {
             passwordError.style.display = 'block';
         }
     });
+    passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') passwordBtn.click(); });
 
-    passwordInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') passwordBtn.click();
+    // Step 2 → Step 3: Lobby selection
+    document.querySelectorAll('.lobby-card').forEach(card => {
+        card.addEventListener('click', () => {
+            card.classList.add('selected');
+            selectedLobby.value = card.dataset.lobby;
+            const name = card.querySelector('.lobby-name').textContent;
+            document.getElementById('app-lobby-label').textContent = '📍 ' + name;
+            setTimeout(() => showScreen(screenApp), 280);
+        });
     });
+
+    // "Cambiar" button to go back to Lobby selection
+    document.getElementById('change-lobby-btn').addEventListener('click', () => {
+        document.querySelectorAll('.lobby-card').forEach(c => c.classList.remove('selected'));
+        showScreen(screenLobby);
+    });
+
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -85,6 +109,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Populate summary stats
                 if (data.stats) {
+                    if (data.stats.lobby) {
+                        document.getElementById('summary-lobby-title').textContent = data.stats.lobby;
+                    }
+
                     if (data.stats.duplicates && data.stats.duplicates.length > 0) {
                         document.getElementById('stat-duplicates').textContent = data.stats.duplicates.join(', ');
                         document.getElementById('label-duplicates').textContent = `${data.stats.duplicates.length} Duplicates`;
@@ -93,8 +121,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('label-duplicates').textContent = 'Duplicates';
                     }
                     
+                    document.getElementById('stat-excel-total').textContent = data.stats.excel_total || 0;
                     document.getElementById('stat-green').textContent = data.stats.total_green || 0;
-                    document.getElementById('stat-brackets').textContent = data.stats.total_linked_groups || 0;
                     document.getElementById('stat-presentations').textContent = data.stats.total_presentations || 0;
                     document.getElementById('stat-promos').textContent = data.stats.total_promos || 0;
                     document.getElementById('stat-certs').textContent = data.stats.total_certs || 0;
@@ -131,6 +159,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('stat-checkouts').textContent = 'None';
                         document.getElementById('label-checkouts').textContent = 'Checked Out';
                     }
+                    
+                    // Calculate Pitchable Rooms
+                    const excelTotal = data.stats.excel_total || 0;
+                    const numDuplicates = (data.stats.duplicates && data.stats.duplicates.length) ? data.stats.duplicates.length : 0;
+                    const numNewMembers = (data.stats.new_members && data.stats.new_members.length) ? data.stats.new_members.length : 0;
+                    const numCheckouts = (data.stats.checkouts && data.stats.checkouts.length) ? data.stats.checkouts.length : 0;
+                    
+                    const pitchableRooms = excelTotal - numDuplicates - numNewMembers - numCheckouts;
+                    document.getElementById('stat-pitchable').textContent = pitchableRooms;
                 }
                 
                 downloadBtn.href = data.download_url;
@@ -155,5 +192,40 @@ document.addEventListener('DOMContentLoaded', () => {
         
         resultDiv.classList.add('hidden');
         form.classList.remove('hidden');
+
+        // Go back to lobby selection
+        document.querySelectorAll('.lobby-card').forEach(c => c.classList.remove('selected'));
+        showScreen(screenLobby);
     });
+
+    const downloadImgBtn = document.getElementById('download-img-btn');
+    if (downloadImgBtn) {
+        downloadImgBtn.addEventListener('click', () => {
+            const summaryGrid = document.querySelector('.summary-grid');
+            if (!summaryGrid) return;
+            
+            // Temporarily set background so it looks good in the image
+            const originalBg = summaryGrid.style.backgroundColor;
+            summaryGrid.style.backgroundColor = '#1f2937'; // dark background matching app
+            summaryGrid.style.padding = '20px';
+            summaryGrid.style.borderRadius = '12px';
+
+            html2canvas(summaryGrid, {
+                backgroundColor: '#1f2937',
+                scale: 2 // High resolution
+            }).then(canvas => {
+                // Restore original styles
+                summaryGrid.style.backgroundColor = originalBg;
+                summaryGrid.style.padding = '';
+                summaryGrid.style.borderRadius = '';
+
+                // Trigger download
+                const link = document.createElement('a');
+                link.download = 'Resumen_Cuartos.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        });
+    }
+
 });
