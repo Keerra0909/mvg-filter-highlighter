@@ -120,6 +120,8 @@ document.addEventListener('DOMContentLoaded', () => {
         resultDiv.classList.add('hidden'); // hide previous results while processing
         const errorBox = document.getElementById('smart-error');
         if (errorBox) errorBox.classList.add('hidden');
+        const successStatus = document.getElementById('success-status');
+        if (successStatus) successStatus.classList.add('hidden');
         
         const formData = new FormData(form);
         
@@ -134,6 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
             statusDiv.classList.add('hidden');
             
             if (response.ok) {
+                const successStatus = document.getElementById('success-status');
+                if (successStatus) successStatus.classList.remove('hidden');
+                
                 resultDiv.classList.remove('hidden');
                 
                 // Populate summary stats

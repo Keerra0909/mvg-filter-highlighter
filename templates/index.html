@@ -100,18 +100,22 @@
                         ⚠️ ¡Cuidado! Las fechas de los archivos parecen no coincidir. ¿Estás seguro de que son del mismo día?
                     </div>
                     <button type="submit" id="submit-btn" disabled>Highlight PDF</button>
+                    
+                    <div id="status" class="hidden" style="margin-top: 20px; text-align: center;">
+                        <div class="spinner" style="margin: 0 auto 10px; width: 30px; height: 30px;"></div>
+                        <p id="status-text" style="color: #60a5fa; font-weight: 500;">Processing your files...</p>
+                    </div>
+                    
+                    <div id="success-status" class="hidden" style="margin-top: 20px; text-align: center; color: #4ade80;">
+                        <div style="font-size: 2rem; margin-bottom: 5px;">✅</div>
+                        <h3 style="font-weight: 500; margin: 0;">Processing Complete!</h3>
+                    </div>
                 </form>
             </div>
 
             <div class="right-panel">
-                <div id="status" class="hidden">
-                    <div class="spinner"></div>
-                    <p id="status-text">Processing your files...</p>
-                </div>
-
                 <div id="result" class="hidden">
-                    <div class="success-icon">✅</div>
-                    <h2 style="margin-bottom: 20px;">Processing Complete!</h2>
+
 
                     <div class="summary-grid">
                         <div class="stat-box" style="grid-column: span 2; background-color: transparent; border: none; padding-bottom: 0;">
