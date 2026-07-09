@@ -213,6 +213,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('label-checkouts').textContent = 'Checked Out';
                     }
                     
+                    if (data.stats.no_shows && data.stats.no_shows.length > 0) {
+                        document.getElementById('stat-noshows').textContent = data.stats.no_shows.join(', ');
+                        document.getElementById('label-noshows').textContent = `${data.stats.no_shows.length} No Show`;
+                    } else {
+                        document.getElementById('stat-noshows').textContent = 'None';
+                        document.getElementById('label-noshows').textContent = 'No Show';
+                    }
+                    
                     const movedRooms = data.stats.moved_rooms || [];
                     const missingRooms = data.stats.missing_rooms || [];
                     
@@ -244,8 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const numDuplicates = (data.stats.duplicates && data.stats.duplicates.length) ? data.stats.duplicates.length : 0;
                     const numNewMembers = (data.stats.new_members && data.stats.new_members.length) ? data.stats.new_members.length : 0;
                     const numCheckouts = (data.stats.checkouts && data.stats.checkouts.length) ? data.stats.checkouts.length : 0;
+                    const numNoShows = (data.stats.no_shows && data.stats.no_shows.length) ? data.stats.no_shows.length : 0;
                     
-                    const pitchableRooms = excelTotal - numDuplicates - numNewMembers - numCheckouts;
+                    const pitchableRooms = excelTotal - numDuplicates - numNewMembers - numCheckouts - numNoShows;
                     document.getElementById('stat-pitchable').textContent = pitchableRooms;
                 }
                 

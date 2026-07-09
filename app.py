@@ -169,6 +169,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
     green_painted_rooms = set()
     new_members = set()
     checkouts = set()
+    no_shows = set()
     
     f_suite_candidates = []
     
@@ -326,6 +327,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                                 checked_out_rects.append(fitz.Rect(ow[0], ow[1], ow[2], ow[3]))
                                 break
                                 
+                is_no_show = 'no' in line_words and 'show' in line_words
+                                
                 is_transfer = 'transfer' in wide_line_text.replace(' ', '')
                 is_free = 'free' in line_words
                 
@@ -346,7 +349,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                 final_color = 'none'
                 offset_x = 8 # Add a small buffer after the last word
                 
-                if has_highlight or is_checked_out or is_transfer or is_kids_only:
+                if has_highlight or is_checked_out or is_transfer or is_kids_only or is_no_show:
                     if has_highlight:
                         rect = fitz.Rect(w[0], w[1], w[2], w[3])
                         annot = page.add_highlight_annot(rect)
@@ -376,6 +379,11 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                     if is_checked_out and final_color == 'green':
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "C.O", fontsize=8, color=(1, 0, 0))
                         offset_x += 18
+                        
+                    if is_no_show and final_color == 'green':
+                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "N.S.", fontsize=8, color=(1, 0, 0))
+                        offset_x += 18
+                        no_shows.add(word_text)
                         
                     if (is_neteurgt or is_netcysgt) and not is_to_eu:
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0, 0, 0))
@@ -841,6 +849,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
         'super_shots_green': super_shots_green_list,
         'new_members': sorted(list(new_members)),
         'checkouts': sorted(green_checkouts),
+        'no_shows': sorted(list(no_shows)),
         'processed_rooms_list': list(processed_rooms),
         'moved_rooms': moved_rooms_log
     }
