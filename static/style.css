@@ -381,3 +381,15 @@ button[type="submit"]:not(:disabled):hover {
         grid-column: span 3 !important;
     }
 }
+
+/* Force Vertical Capture for Image Download */
+body.force-vertical-capture .summary-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    width: 420px !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+}
+
+body.force-vertical-capture .stat-box[style*="grid-column: span 2"] {
+    grid-column: span 2 !important;
+}

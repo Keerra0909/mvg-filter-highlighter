@@ -204,27 +204,34 @@ document.addEventListener('DOMContentLoaded', () => {
             const summaryGrid = document.querySelector('.summary-grid');
             if (!summaryGrid) return;
             
+            // Force vertical mode for capture
+            document.body.classList.add('force-vertical-capture');
+
             // Temporarily set background so it looks good in the image
             const originalBg = summaryGrid.style.backgroundColor;
             summaryGrid.style.backgroundColor = '#1f2937'; // dark background matching app
             summaryGrid.style.padding = '20px';
             summaryGrid.style.borderRadius = '12px';
 
-            html2canvas(summaryGrid, {
-                backgroundColor: '#1f2937',
-                scale: 2 // High resolution
-            }).then(canvas => {
-                // Restore original styles
-                summaryGrid.style.backgroundColor = originalBg;
-                summaryGrid.style.padding = '';
-                summaryGrid.style.borderRadius = '';
+            // Need to wait slightly for the DOM to update to vertical layout
+            setTimeout(() => {
+                html2canvas(summaryGrid, {
+                    backgroundColor: '#1f2937',
+                    scale: 2 // High resolution
+                }).then(canvas => {
+                    // Restore original styles
+                    document.body.classList.remove('force-vertical-capture');
+                    summaryGrid.style.backgroundColor = originalBg;
+                    summaryGrid.style.padding = '';
+                    summaryGrid.style.borderRadius = '';
 
-                // Trigger download
-                const link = document.createElement('a');
-                link.download = 'Resumen_Cuartos.png';
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-            });
+                    // Trigger download
+                    const link = document.createElement('a');
+                    link.download = 'Resumen_Cuartos.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                });
+            }, 100);
         });
     }
 
