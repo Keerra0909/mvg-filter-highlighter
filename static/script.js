@@ -220,8 +220,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         let htmlContent = '';
                         
                         if (movedRooms.length > 0) {
-                            let movedText = movedRooms.map(m => `${m.old} ➔ ${m.new} (Encontrada)`).join(', ');
-                            htmlContent += `<div>${movedText}</div>`;
+                            let movedText = movedRooms.map(m => `${m.old} ➔ <span style="font-weight: bold;">${m.new}</span> (Encontrada)`).join(', ');
+                            htmlContent += `<div style="color: #10b981;">${movedText}</div>`;
                         }
                         
                         if (missingRooms.length > 0) {
