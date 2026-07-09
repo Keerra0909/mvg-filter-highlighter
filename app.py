@@ -332,6 +332,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                 has_highlight = in_excel or strong_red or weak_red or is_neteurgt or is_netcysgt or is_to_eu
                 
                 final_color = 'none'
+                offset_x = 8 # Add a small buffer after the last word
                 
                 if has_highlight or is_checked_out or is_transfer or is_kids_only:
                     if has_highlight:
@@ -360,7 +361,6 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                     right_words = [w2 for w2 in line_words_raw if w2[0] >= w[0]]
                     base_x = max(w2[2] for w2 in right_words) if right_words else w[2]
                     
-                    offset_x = 8 # Add a small buffer after the last word
                     if is_checked_out and final_color == 'green':
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "C.O", fontsize=8, color=(1, 0, 0))
                         offset_x += 18
@@ -451,71 +451,71 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                             nm_x = max(w2[2] for w2 in full_row_words) + 6 if full_row_words else m_word[2] + 12
                             page.insert_text(fitz.Point(nm_x, m_word[3] - 2), "N.M.", fontsize=8, color=(1, 0, 0))
                             
-                    # Extract membership info for bracket linking
-                    membership_text = ""
-                    membership_right_edge = None
-                    if membership_x0 is not None:
-                        import re
-                        # Strict left boundary: start AT membership_x0 (never reach into Grupo column)
-                        # Strict right boundary: stop before Room Type header
-                        mem_left = membership_x0
-                        mem_right = membership_x0 + 75
-                        if room_type_header_x0 and room_type_header_x0 > membership_x0:
-                            mem_right = min(mem_right, room_type_header_x0 - 5)
-                        w_mid = (w[1] + w[3]) / 2
-                        # Require the middle of the Room text to intersect the Y-bounds of the membership text
-                        m_words = [w2 for w2 in words if w2[1] - 3 <= w_mid <= w2[3] + 3 and mem_left <= w2[0] <= mem_right]
-                        if m_words:
-                            raw_mem = "".join([mw[4] for mw in m_words]).strip()
-                            mem_match = re.search(r'\d{4,}', raw_mem)
-                            if mem_match and "OUT" not in raw_mem.upper():
-                                membership_text = mem_match.group(0)
-                                membership_right_edge = max(mw[2] for mw in m_words)
-                        print(f"  Room {word_text}: mem_left={mem_left:.1f}, mem_right={mem_right:.1f}, raw='{raw_mem if m_words else ''}', membership='{membership_text}'")
-                            
-                    # Extract Grupo/Party info for bracket linking
-                    grupo_text = ""
-                    grupo_key = ""  # numeric-only key for grouping
-                    grupo_right_edge = None
-                    if grupo_x0 is not None:
-                        import re
-                        # Stop Grupo extraction before Membership column starts
-                        grupo_max_x = grupo_x0 + 120
-                        if membership_x0 and membership_x0 > grupo_x0:
-                            grupo_max_x = min(grupo_max_x, membership_x0 - 5)
-                        # Only grab words on the SAME line (we only need the number now, multiline names don't matter)
-                        g_words = [w2 for w2 in words if w2[1] - 3 <= w_mid <= w2[3] + 3 and (grupo_x0 - 25) <= w2[0] <= grupo_max_x]
-                        if g_words:
-                            raw_grp = " ".join([gw[4] for gw in sorted(g_words, key=lambda x: (x[1], x[0]))]).strip()
-                            # VALIDATION: must contain a 4+ digit sequence
-                            grp_match = re.search(r'\d{4,}', raw_grp)
-                            if grp_match and "OUT" not in raw_grp.upper():
-                                grupo_text = raw_grp
-                                grupo_key = grp_match.group(0)  # use ONLY the number for grouping
-                                grupo_right_edge = max(gw[2] for gw in g_words)
+                # Extract membership info for bracket linking
+                membership_text = ""
+                membership_right_edge = None
+                if membership_x0 is not None:
+                    import re
+                    # Strict left boundary: start AT membership_x0 (never reach into Grupo column)
+                    # Strict right boundary: stop before Room Type header
+                    mem_left = membership_x0
+                    mem_right = membership_x0 + 75
+                    if room_type_header_x0 and room_type_header_x0 > membership_x0:
+                        mem_right = min(mem_right, room_type_header_x0 - 5)
+                    w_mid = (w[1] + w[3]) / 2
+                    # Require the middle of the Room text to intersect the Y-bounds of the membership text
+                    m_words = [w2 for w2 in words if w2[1] - 3 <= w_mid <= w2[3] + 3 and mem_left <= w2[0] <= mem_right]
+                    if m_words:
+                        raw_mem = "".join([mw[4] for mw in m_words]).strip()
+                        mem_match = re.search(r'\d{4,}', raw_mem)
+                        if mem_match and "OUT" not in raw_mem.upper():
+                            membership_text = mem_match.group(0)
+                            membership_right_edge = max(mw[2] for mw in m_words)
+                    print(f"  Room {word_text}: mem_left={mem_left:.1f}, mem_right={mem_right:.1f}, raw='{raw_mem if m_words else ''}', membership='{membership_text}'")
                         
-                    extracted_rooms_membership.append({
-                        "room": word_text,
-                        "room_x1": w[2],
-                        "color": final_color,
-                        "membership": membership_text,
-                        "bracket_x": membership_right_edge + 8 if membership_right_edge else (membership_x0 + 50 if membership_x0 else w[0] - 50),
-                        "grupo": grupo_text,
-                        "grupo_key": grupo_key,  # numeric-only for grouping
-                        "g_bracket_x": grupo_right_edge + 8 if grupo_right_edge else (grupo_x0 + 70 if grupo_x0 else w[0] - 100),
-                        "page_idx": page.number,
-                        "y0": w[1],
-                        "y1": w[3],
-                        "line_words_raw": line_words_raw,
-                        "type_word": type_word,
-                        "is_mvg": is_mvg_pdf,
-                        "offset_x": offset_x,
-                        "membership_x0": membership_x0,
-                        "grupo_x0": grupo_x0
-                    })
-                        
+                # Extract Grupo/Party info for bracket linking
+                grupo_text = ""
+                grupo_key = ""  # numeric-only key for grouping
+                grupo_right_edge = None
+                if grupo_x0 is not None:
+                    import re
+                    # Stop Grupo extraction before Membership column starts
+                    grupo_max_x = grupo_x0 + 120
+                    if membership_x0 and membership_x0 > grupo_x0:
+                        grupo_max_x = min(grupo_max_x, membership_x0 - 5)
+                    # Only grab words on the SAME line (we only need the number now, multiline names don't matter)
+                    g_words = [w2 for w2 in words if w2[1] - 3 <= w_mid <= w2[3] + 3 and (grupo_x0 - 25) <= w2[0] <= grupo_max_x]
+                    if g_words:
+                        raw_grp = " ".join([gw[4] for gw in sorted(g_words, key=lambda x: (x[1], x[0]))]).strip()
+                        # VALIDATION: must contain a 4+ digit sequence
+                        grp_match = re.search(r'\d{4,}', raw_grp)
+                        if grp_match and "OUT" not in raw_grp.upper():
+                            grupo_text = raw_grp
+                            grupo_key = grp_match.group(0)  # use ONLY the number for grouping
+                            grupo_right_edge = max(gw[2] for gw in g_words)
+                    
+                extracted_rooms_membership.append({
+                    "room": word_text,
+                    "room_x1": w[2],
+                    "color": final_color,
+                    "membership": membership_text,
+                    "bracket_x": membership_right_edge + 8 if membership_right_edge else (membership_x0 + 50 if membership_x0 else w[0] - 50),
+                    "grupo": grupo_text,
+                    "grupo_key": grupo_key,  # numeric-only for grouping
+                    "g_bracket_x": grupo_right_edge + 8 if grupo_right_edge else (grupo_x0 + 70 if grupo_x0 else w[0] - 100),
+                    "page_idx": page.number,
+                    "y0": w[1],
+                    "y1": w[3],
+                    "line_words_raw": line_words_raw,
+                    "type_word": type_word,
+                    "is_mvg": is_mvg_pdf,
+                    "offset_x": offset_x,
+                    "membership_x0": membership_x0,
+                    "grupo_x0": grupo_x0
+                })
+                    
+                if has_highlight or is_checked_out or is_transfer or is_kids_only:
                     total_highlights += 1
-
     print(f"Total highlights made: {total_highlights}")
     
     # Pass 2: Group by Membership Number per page
