@@ -14,8 +14,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBtn = document.getElementById('reset-btn');
 
     function extractDateNumber(filename) {
-        const match = filename.match(/\b(0[1-9]|[12]\d|3[01])\b/);
-        return match ? match[1] : null;
+        // Try to match YYYY-MM-DD format (usually Excel) and extract the Day (DD)
+        const dateMatch = filename.match(/\d{4}-\d{2}-(\d{2})/);
+        if (dateMatch) {
+            return dateMatch[1];
+        }
+        
+        // Otherwise, extract the first 1 or 2 digit number (usually PDF like "07 DE JULIO")
+        const match = filename.match(/\b([0-3]?\d)\b/);
+        if (match) {
+            return match[1].padStart(2, '0');
+        }
+        
+        return null;
     }
 
     function checkFiles() {
