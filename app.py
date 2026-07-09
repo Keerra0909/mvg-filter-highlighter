@@ -507,12 +507,19 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                     g_words = [w2 for w2 in words if w2[1] - 3 <= w_mid <= w2[3] + 3 and (grupo_x0 - 25) <= w2[0] <= grupo_max_x]
                     if g_words:
                         raw_grp = " ".join([gw[4] for gw in sorted(g_words, key=lambda x: (x[1], x[0]))]).strip()
-                        # VALIDATION: must contain a 4+ digit sequence
+                        # VALIDATION: try to find a 4+ digit sequence first
                         grp_match = re.search(r'\d{4,}', raw_grp)
-                        if grp_match and "OUT" not in raw_grp.upper():
-                            grupo_text = raw_grp
-                            grupo_key = grp_match.group(0)  # use ONLY the number for grouping
-                            grupo_right_edge = max(gw[2] for gw in g_words)
+                        if "OUT" not in raw_grp.upper():
+                            if grp_match:
+                                grupo_text = raw_grp
+                                grupo_key = grp_match.group(0)  # use ONLY the number for grouping
+                            elif len(raw_grp) > 5:
+                                grupo_text = raw_grp
+                                # Fallback for text-based groups: normalize alphanumeric characters
+                                grupo_key = re.sub(r'[^a-zA-Z0-9]', '', raw_grp).upper()
+                                
+                            if grupo_key:
+                                grupo_right_edge = max(gw[2] for gw in g_words)
                     
                 extracted_rooms_membership.append({
                     "room": word_text,
