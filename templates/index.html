@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Highlighter">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/337/337946.png">
     <title>Room Highlighter</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -69,6 +73,10 @@
 
                 <form id="upload-form">
                     <input type="hidden" id="selected-lobby" name="lobby" value="">
+                    
+                    <div id="smart-error" class="hidden" style="color: #fca5a5; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.95rem; text-align: left; line-height: 1.4;">
+                        <strong>❌ Error processing files:</strong><br><span id="smart-error-text"></span>
+                    </div>
 
                     <div class="upload-area" id="excel-area" onclick="document.getElementById('excel_file').click()">
                         <input type="file" id="excel_file" name="excel_file" accept=".xlsx, .xls, .csv" required hidden>
@@ -155,9 +163,11 @@
                         </div>
                     </div>
 
-                    <a id="download-btn" href="#" class="btn primary" style="margin-top: 25px;" download>Download PDF</a>
-                    <button id="download-img-btn" class="btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white; margin-top: 10px;">Download Summary as Image</button>
-                    <button id="reset-btn" class="btn secondary" style="margin-top: 10px;">Start Over</button>
+                    <div class="action-buttons-row" style="display: flex; gap: 10px; margin-top: 25px;">
+                        <a id="download-btn" href="#" class="btn primary" style="flex: 1; margin: 0; padding: 1rem; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px;" download>📄 Download PDF</a>
+                        <button id="download-img-btn" class="btn" style="flex: 1; background: linear-gradient(135deg, #10b981, #059669); color: white; margin: 0; padding: 1rem; font-size: 1rem; border: none; font-weight: 500; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">📸 Save Image</button>
+                    </div>
+                    <button id="reset-btn" class="btn secondary" style="margin-top: 15px; width: 100%; padding: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 8px;">🔄 Start Over</button>
                 </div>
             </div>
         </div>

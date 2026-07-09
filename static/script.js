@@ -119,6 +119,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         statusDiv.classList.remove('hidden');
         resultDiv.classList.add('hidden'); // hide previous results while processing
+        const errorBox = document.getElementById('smart-error');
+        if (errorBox) errorBox.classList.add('hidden');
         
         const formData = new FormData(form);
         
@@ -200,18 +202,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 downloadBtn.href = data.download_url;
             } else {
-                alert('Error: ' + data.error);
+                const errorBox = document.getElementById('smart-error');
+                const errorText = document.getElementById('smart-error-text');
+                if (errorBox && errorText) {
+                    errorText.textContent = data.error;
+                    errorBox.classList.remove('hidden');
+                } else {
+                    alert('Error: ' + data.error);
+                }
                 form.classList.remove('hidden');
             }
         } catch (error) {
             statusDiv.classList.add('hidden');
             form.classList.remove('hidden');
-            alert('An error occurred: ' + error.message);
+            const errorBox = document.getElementById('smart-error');
+            const errorText = document.getElementById('smart-error-text');
+            if (errorBox && errorText) {
+                errorText.textContent = error.message;
+                errorBox.classList.remove('hidden');
+            } else {
+                alert('An error occurred: ' + error.message);
+            }
         }
     });
 
     resetBtn.addEventListener('click', () => {
         form.reset();
+        const errorBox = document.getElementById('smart-error');
+        if (errorBox) errorBox.classList.add('hidden');
         excelName.textContent = 'Tap to select your list';
         pdfName.textContent = 'Tap to select the report';
         excelArea.classList.remove('has-file');
