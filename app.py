@@ -788,6 +788,9 @@ def process_files():
         # Remove the temporary list so we don't send it to the frontend
         del stats['processed_rooms_list']
         
+        # Calculate missing rooms
+        stats['missing_rooms'] = sorted(list(set(rooms) - processed_rooms_set))
+        
         # 3. Clean up input files
         os.remove(excel_path)
         os.remove(pdf_path)

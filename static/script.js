@@ -213,6 +213,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('label-checkouts').textContent = 'Checked Out';
                     }
                     
+                    if (data.stats.missing_rooms && data.stats.missing_rooms.length > 0) {
+                        document.getElementById('stat-missing').textContent = data.stats.missing_rooms.join(', ');
+                        document.getElementById('label-missing').textContent = `${data.stats.missing_rooms.length} Missing from PDF`;
+                    } else {
+                        document.getElementById('stat-missing').textContent = 'None';
+                        document.getElementById('label-missing').textContent = 'Missing from PDF';
+                    }
+                    
                     // Calculate Pitchable Rooms
                     const excelTotal = data.stats.excel_total || 0;
                     const numDuplicates = (data.stats.duplicates && data.stats.duplicates.length) ? data.stats.duplicates.length : 0;
