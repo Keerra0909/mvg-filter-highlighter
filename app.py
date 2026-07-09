@@ -501,9 +501,15 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                     if m_words:
                         raw_mem = "".join([mw[4] for mw in m_words]).strip()
                         mem_match = re.search(r'\d{4,}', raw_mem)
-                        if mem_match and "OUT" not in raw_mem.upper():
-                            membership_text = mem_match.group(0)
-                            membership_right_edge = max(mw[2] for mw in m_words)
+                        if "OUT" not in raw_mem.upper():
+                            if mem_match:
+                                membership_text = mem_match.group(0)
+                            elif len(raw_mem) > 5:
+                                # Fallback for text-based memberships: normalize alphanumeric characters
+                                membership_text = re.sub(r'[^a-zA-Z0-9]', '', raw_mem).upper()
+                                
+                            if membership_text:
+                                membership_right_edge = max(mw[2] for mw in m_words)
                     print(f"  Room {word_text}: mem_left={mem_left:.1f}, mem_right={mem_right:.1f}, raw='{raw_mem if m_words else ''}', membership='{membership_text}'")
                         
                 # Extract Grupo/Party info for bracket linking
