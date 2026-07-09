@@ -13,11 +13,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadBtn = document.getElementById('download-btn');
     const resetBtn = document.getElementById('reset-btn');
 
+    function extractDateNumber(filename) {
+        const match = filename.match(/\b(0[1-9]|[12]\d|3[01])\b/);
+        return match ? match[1] : null;
+    }
+
     function checkFiles() {
+        const warningDiv = document.getElementById('date-warning');
         if (excelInput.files.length > 0 && pdfInput.files.length > 0) {
             submitBtn.disabled = false;
+            
+            // Check if dates match
+            const excelDate = extractDateNumber(excelInput.files[0].name);
+            const pdfDate = extractDateNumber(pdfInput.files[0].name);
+            
+            if (excelDate && pdfDate && excelDate !== pdfDate) {
+                warningDiv.classList.remove('hidden');
+            } else {
+                warningDiv.classList.add('hidden');
+            }
         } else {
             submitBtn.disabled = true;
+            if (warningDiv) warningDiv.classList.add('hidden');
         }
     }
 
