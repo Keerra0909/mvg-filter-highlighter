@@ -951,7 +951,7 @@ def process_files():
 def download_file(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if os.path.exists(file_path):
-        return send_file(file_path, as_attachment=True, download_name=filename, mimetype='application/pdf')
+        return send_file(file_path, as_attachment=True, download_name=filename, mimetype='application/octet-stream')
     return "File not found", 404
 
 if __name__ == '__main__':
