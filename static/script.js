@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Step 1 → Step 2: Password check
     passwordBtn.addEventListener('click', () => {
-        if (passwordInput.value.trim().toUpperCase() === 'MVG2026') {
+        if (passwordInput.value.trim().toUpperCase() === 'MVGMVG') {
             localStorage.setItem('mvg_auth_timestamp', Date.now().toString());
             showScreen(screenLobby);
         } else {
