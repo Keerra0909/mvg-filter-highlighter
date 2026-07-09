@@ -523,7 +523,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                     if membership_x0 and membership_x0 > grupo_x0:
                         grupo_max_x = min(grupo_max_x, membership_x0 - 5)
                     # Only grab words on the SAME line (we only need the number now, multiline names don't matter)
-                    g_words = [w2 for w2 in words if w2[1] - 3 <= w_mid <= w2[3] + 3 and (grupo_x0 - 25) <= w2[0] <= grupo_max_x]
+                    g_words = [w2 for w2 in words if w2[1] - 3 <= w_mid <= w2[3] + 3 and (grupo_x0 - 5) <= w2[0] <= grupo_max_x]
                     if g_words:
                         raw_grp = " ".join([gw[4] for gw in sorted(g_words, key=lambda x: (x[1], x[0]))]).strip()
                         # VALIDATION: try to find a 4+ digit sequence first
