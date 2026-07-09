@@ -252,7 +252,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                 line_text = " ".join(line_words)
                 
                 # Wide line words to catch wrapped text in the Agency / Company columns
-                wide_line_words = [w2[4].lower() for w2 in words if abs(w2[1] - w[1]) < 15]
+                wide_line_words = [w2[4].lower() for w2 in words if abs(w2[1] - w[1]) < 5]
                 wide_line_text = " ".join(wide_line_words)
                 
                 is_mvg_pdf = ('mvg' in wide_line_text and 'moon' in wide_line_text and 'vacation' in wide_line_text) or ('main' in wide_line_text and 'moon' in wide_line_text)
