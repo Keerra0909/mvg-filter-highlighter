@@ -155,6 +155,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('label-duplicates').textContent = 'Duplicates';
                     }
                     
+                    if (data.stats.excel_total > 0 && (data.stats.total_green || 0) === 0) {
+                        document.getElementById('anomaly-warning').classList.remove('hidden');
+                    } else {
+                        document.getElementById('anomaly-warning').classList.add('hidden');
+                    }
+                    
                     document.getElementById('stat-excel-total').textContent = data.stats.excel_total || 0;
                     document.getElementById('stat-green').textContent = data.stats.total_green || 0;
                     document.getElementById('stat-presentations').textContent = data.stats.total_presentations || 0;
