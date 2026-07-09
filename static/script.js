@@ -89,8 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        form.classList.add('hidden');
         statusDiv.classList.remove('hidden');
+        resultDiv.classList.add('hidden'); // hide previous results while processing
         
         const formData = new FormData(form);
         
