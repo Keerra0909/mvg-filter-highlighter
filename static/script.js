@@ -217,19 +217,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     const missingRooms = data.stats.missing_rooms || [];
                     
                     if (missingRooms.length > 0 || movedRooms.length > 0) {
-                        let missingTextArray = [];
+                        let htmlContent = '';
                         
-                        // Add moved rooms first
-                        movedRooms.forEach(m => {
-                            missingTextArray.push(`${m.old} ➔ ${m.new} (Encontrada)`);
-                        });
+                        if (movedRooms.length > 0) {
+                            let movedText = movedRooms.map(m => `${m.old} ➔ ${m.new} (Encontrada)`).join(', ');
+                            htmlContent += `<div>${movedText}</div>`;
+                        }
                         
-                        // Add truly missing rooms
-                        missingRooms.forEach(r => {
-                            missingTextArray.push(r);
-                        });
+                        if (missingRooms.length > 0) {
+                            let marginTop = movedRooms.length > 0 ? '15px' : '0px';
+                            htmlContent += `<div style="margin-top: ${marginTop}; font-size: 1.2rem; font-weight: bold; color: #ef4444;">NO ENCONTRADAS</div>`;
+                            htmlContent += `<div>${missingRooms.join(', ')}</div>`;
+                        }
                         
-                        document.getElementById('stat-missing').textContent = missingTextArray.join(', ');
+                        document.getElementById('stat-missing').innerHTML = htmlContent;
                         
                         const totalCount = missingRooms.length + movedRooms.length;
                         document.getElementById('label-missing').textContent = `${totalCount} Missing from PDF`;
