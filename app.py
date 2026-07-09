@@ -291,8 +291,9 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                                 break
                                 
                 is_transfer = 'transfer' in wide_line_text.replace(' ', '')
+                is_free = 'free' in line_words
                 
-                strong_red = is_mvg_pdf or is_especiales or is_cortesia or is_travel or is_employee or is_rss or is_agency_direct or is_neteurgt or is_netcysgt or is_uso_casa or is_web_main_certmvg
+                strong_red = is_mvg_pdf or is_especiales or is_cortesia or is_travel or is_employee or is_rss or is_agency_direct or is_neteurgt or is_netcysgt or is_uso_casa or is_web_main_certmvg or is_free
                 if lobby in ['nizuc', 'grand'] and is_wow:
                     strong_red = True
                     
