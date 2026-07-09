@@ -166,6 +166,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
     total_presentations = 0
     total_super_shots = 0
     processed_rooms = set()
+    green_painted_rooms = set()
     new_members = set()
     checkouts = set()
     
@@ -323,6 +324,9 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                 weak_red = any(c in line_words for c in ['va', 'vc', 'm', 'vd', 'vr'])
                 
                 in_excel = word_text in room_data
+                if in_excel and word_text not in processed_rooms:
+                    processed_rooms.add(word_text)
+                    
                 data = room_data.get(word_text, {'underline': False, 'certificado': False, 'promo': False, 'mvg': False})
                 
                 has_highlight = in_excel or strong_red or weak_red or is_neteurgt or is_netcysgt or is_to_eu
@@ -341,8 +345,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                         elif in_excel:
                             annot.set_colors(stroke=highlight_color) # green
                             final_color = 'green'
-                            if word_text not in processed_rooms:
-                                processed_rooms.add(word_text)
+                            if word_text not in green_painted_rooms:
+                                green_painted_rooms.add(word_text)
                                 total_green += 1
                                 if data['underline']:
                                     total_presentations += 1
