@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import pandas as pd
 import fitz  # PyMuPDF
 from flask import Flask, request, send_file, render_template, jsonify
@@ -39,6 +40,9 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
         room_col_idx = None
         attendance_col_idx = None
         reason_col_idx = None
+        last_name_col_idx = None
+        first_name_col_idx = None
+        full_name_col_idx = None
         
         for idx, row in df.head(20).iterrows():
             for col_idx, val in row.items():
@@ -49,6 +53,12 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
                     attendance_col_idx = col_idx
                 if 'reason' in val_str:
                     reason_col_idx = col_idx
+                if 'lasname' in val_str or 'lastname' in val_str:
+                    last_name_col_idx = col_idx
+                if 'firstname' in val_str:
+                    first_name_col_idx = col_idx
+                if 'full name' in val_str or 'fullname' in val_str:
+                    full_name_col_idx = col_idx
                     
             if room_col_idx is not None:
                 header_row_idx = idx
@@ -100,7 +110,20 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
                             seen_rooms.add(val_str)
                             
                         if val_str not in room_data:
-                            room_data[val_str] = {'underline': False, 'certificado': False, 'promo': False, 'mvg': False}
+                            room_data[val_str] = {'underline': False, 'certificado': False, 'promo': False, 'mvg': False, 'name_tokens': set()}
+                            
+                            name_text = ""
+                            if last_name_col_idx is not None:
+                                name_text += " " + str(df.iloc[idx_row, last_name_col_idx])
+                            if first_name_col_idx is not None:
+                                name_text += " " + str(df.iloc[idx_row, first_name_col_idx])
+                            if full_name_col_idx is not None and not name_text.strip():
+                                name_text += " " + str(df.iloc[idx_row, full_name_col_idx])
+                                
+                            if name_text.strip() and str(name_text).lower() != 'nan':
+                                clean_text = re.sub(r'[^a-zA-Z\s]', ' ', name_text.lower())
+                                tokens = set(w for w in clean_text.split() if len(w) > 2)
+                                room_data[val_str]['name_tokens'].update(tokens)
                             
                         if needs_underline: room_data[val_str]['underline'] = True
                         if has_certificado: room_data[val_str]['certificado'] = True
@@ -126,7 +149,7 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
                                 seen_rooms.add(val_str)
                                 
                             if val_str not in room_data:
-                                room_data[val_str] = {'underline': False, 'certificado': False, 'promo': False, 'mvg': False}
+                                room_data[val_str] = {'underline': False, 'certificado': False, 'promo': False, 'mvg': False, 'name_tokens': set()}
                     except:
                         pass
                     
@@ -709,6 +732,70 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                     text_x = r['room_x1'] + r['offset_x'] + 5
                     # Use a dark golden-yellow so it's visible on white paper
                     page.insert_text(fitz.Point(text_x, r['y1'] - 1), text_str, fontsize=8.5, color=(0.85, 0.65, 0.0))
+
+    # Pass 4: Fuzzy Name Matching for Missing Rooms
+    missing_rooms = [r for r in room_data.keys() if r not in processed_rooms]
+    if missing_rooms:
+        print(f"Pass 4: Searching for {len(missing_rooms)} missing rooms by name...")
+        for page_num, page in enumerate(doc):
+            words = page.get_text("words")
+            
+            # Find Room column boundary
+            room_words = [w for w in words if "room" in w[4].lower() and w[1] < page.rect.height / 2]
+            room_header_x0 = max(w[0] for w in room_words) if room_words else None
+            
+            page_rooms = []
+            for w in words:
+                word_text = w[4]
+                is_in_column = False
+                if room_header_x0 is not None:
+                    if abs(w[0] - room_header_x0) < 25:
+                        is_in_column = True
+                elif w[0] > page.rect.width / 2:
+                    is_in_column = True
+                        
+                if is_in_column and word_text.isdigit() and len(word_text) >= 3:
+                    page_rooms.append(w)
+                    
+            page_rooms.sort(key=lambda x: x[1])
+            
+            for i, w_room in enumerate(page_rooms):
+                word_text = w_room[4]
+                if word_text in processed_rooms:
+                    continue
+                    
+                next_y = page_rooms[i+1][1] if i + 1 < len(page_rooms) else page.rect.height
+                block_words = [w2 for w2 in words if w_room[1] - 5 <= w2[1] < next_y - 2]
+                
+                block_text = " ".join([w2[4] for w2 in block_words])
+                clean_block = re.sub(r'[^a-zA-Z\s]', ' ', block_text.lower())
+                block_tokens = set(clean_block.split())
+                
+                matched_room = None
+                for m_room in missing_rooms:
+                    m_tokens = room_data[m_room].get('name_tokens', set())
+                    if len(m_tokens) >= 2 and m_tokens.issubset(block_tokens):
+                        matched_room = m_room
+                        break
+                        
+                if matched_room:
+                    print(f"FUZZY MATCH: Found missing room {matched_room} at new room {word_text}")
+                    rect = fitz.Rect(w_room[0], w_room[1], w_room[2], w_room[3])
+                    annot = page.add_highlight_annot(rect)
+                    annot.set_colors(stroke=highlight_color)
+                    annot.update()
+                    
+                    main_line_words = [w2 for w2 in words if abs(w2[1] - w_room[1]) < 5 and w2[0] >= w_room[0]]
+                    base_x = max(w2[2] for w2 in main_line_words) if main_line_words else w_room[2]
+                    page.insert_text(fitz.Point(base_x + 8, w_room[3] - 2), "MOVED", fontsize=8, color=(0, 0.5, 0))
+                    
+                    processed_rooms.add(word_text)  # Mark the new room as processed!
+                    processed_rooms.add(matched_room) # Mark the old room as processed so it counts as found
+                    missing_rooms.remove(matched_room)
+                    total_green += 1
+                    if room_data.get(matched_room, {}).get('underline'):
+                        total_presentations += 1
+                        page.draw_line(fitz.Point(w_room[0], w_room[3] + 1), fitz.Point(w_room[2], w_room[3] + 1), color=red_color, width=1.5)
 
     doc.save(output_path)
     doc.close()
