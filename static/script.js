@@ -213,9 +213,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('label-checkouts').textContent = 'Checked Out';
                     }
                     
-                    if (data.stats.missing_rooms && data.stats.missing_rooms.length > 0) {
-                        document.getElementById('stat-missing').textContent = data.stats.missing_rooms.join(', ');
-                        document.getElementById('label-missing').textContent = `${data.stats.missing_rooms.length} Missing from PDF`;
+                    const movedRooms = data.stats.moved_rooms || [];
+                    const missingRooms = data.stats.missing_rooms || [];
+                    
+                    if (missingRooms.length > 0 || movedRooms.length > 0) {
+                        let missingTextArray = [];
+                        
+                        // Add moved rooms first
+                        movedRooms.forEach(m => {
+                            missingTextArray.push(`${m.old} ➔ ${m.new} (Encontrada)`);
+                        });
+                        
+                        // Add truly missing rooms
+                        missingRooms.forEach(r => {
+                            missingTextArray.push(r);
+                        });
+                        
+                        document.getElementById('stat-missing').textContent = missingTextArray.join(', ');
+                        
+                        const totalCount = missingRooms.length + movedRooms.length;
+                        document.getElementById('label-missing').textContent = `${totalCount} Missing from PDF`;
                     } else {
                         document.getElementById('stat-missing').textContent = 'None';
                         document.getElementById('label-missing').textContent = 'Missing from PDF';

@@ -228,20 +228,32 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
             room_header_x0 = max(w[0] for w in standalone_rooms)
             print(f"Found Room header at x0: {room_header_x0}")
             
+        page_room_y = []
+        for w in words:
+            is_in_column = False
+            if room_header_x0 is not None:
+                if abs(w[0] - room_header_x0) < 25:
+                    is_in_column = True
+            elif w[0] > page.rect.width / 2:
+                is_in_column = True
+            if is_in_column and w[4].isdigit() and len(w[4]) >= 3:
+                page_room_y.append(w[1])
+        page_room_y.sort()
+        
         for w in words:
             word_text = w[4]
             
-            # First check if this word is in the Room column and looks like a room number
             is_in_column = False
             if room_header_x0 is not None:
-                drift = abs(w[0] - room_header_x0)
-                if drift < 25:
+                if abs(w[0] - room_header_x0) < 25:
                     is_in_column = True
-            else:
-                if w[0] > page.rect.width / 2:
-                    is_in_column = True
+            elif w[0] > page.rect.width / 2:
+                is_in_column = True
                     
             if is_in_column and word_text.isdigit() and len(word_text) >= 3:
+                idx = page_room_y.index(w[1])
+                next_y = page_room_y[idx+1] if idx + 1 < len(page_room_y) else page.rect.height
+                
                 # Check if this line contains MVG or the special rates in the PDF
                 # Strict line words for precise status matching (prevents Checked Out / Due Out collisions)
                 line_words_raw = [w2 for w2 in words if abs(w2[1] - w[1]) < 5]
@@ -275,8 +287,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                             
                 line_text = " ".join(line_words)
                 
-                # Wide line words to catch wrapped text in the Agency / Company columns
-                wide_line_words = [w2[4].lower() for w2 in words if abs(w2[1] - w[1]) < 5]
+                # Wide line words to catch wrapped text in the Agency / Company columns (up to next_y)
+                wide_line_words = [w2[4].lower() for w2 in words if -5 <= (w2[1] - w[1]) < (next_y - w[1] - 2)]
                 wide_line_text = " ".join(wide_line_words)
                 
                 is_mvg_pdf = ('mvg' in wide_line_text and 'moon' in wide_line_text and 'vacation' in wide_line_text) or ('main' in wide_line_text and 'moon' in wide_line_text)
@@ -739,6 +751,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
 
     # Pass 4: Fuzzy Name Matching for Missing Rooms
     missing_rooms = [r for r in room_data.keys() if r not in processed_rooms]
+    moved_rooms_log = []
     if missing_rooms:
         print(f"Pass 4: Searching for {len(missing_rooms)} missing rooms by name...")
         for page_num, page in enumerate(doc):
@@ -784,6 +797,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                         
                 if matched_room:
                     print(f"FUZZY MATCH: Found missing room {matched_room} at new room {word_text}")
+                    moved_rooms_log.append({'old': matched_room, 'new': word_text})
+                    
                     rect = fitz.Rect(w_room[0], w_room[1], w_room[2], w_room[3])
                     annot = page.add_highlight_annot(rect)
                     annot.set_colors(stroke=highlight_color)
@@ -826,7 +841,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
         'super_shots_green': super_shots_green_list,
         'new_members': sorted(list(new_members)),
         'checkouts': sorted(green_checkouts),
-        'processed_rooms_list': list(processed_rooms)
+        'processed_rooms_list': list(processed_rooms),
+        'moved_rooms': moved_rooms_log
     }
 
 @app.route('/')
