@@ -290,7 +290,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                 is_netcysgt = 'netcys' in wide_line_text and 'british' in wide_line_text and 'airways' in wide_line_text
                 is_wow = 'wow' in wide_line_words
                 is_uso_casa = 'uso' in wide_line_text and 'casa' in wide_line_text
-                is_web_main_certmvg = 'web' in wide_line_text and 'main' in wide_line_text and 'certmvg' in wide_line_text
+                is_certmvg = 'certmvg' in wide_line_text
                 is_to_eu = 'to' in line_words and 'eu' in line_words
                 
                 is_checked_out = False
@@ -317,7 +317,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                 is_transfer = 'transfer' in wide_line_text.replace(' ', '')
                 is_free = 'free' in line_words
                 
-                strong_red = is_mvg_pdf or is_especiales or is_cortesia or is_travel or is_employee or is_rss or is_agency_direct or is_neteurgt or is_netcysgt or is_uso_casa or is_web_main_certmvg or is_free
+                strong_red = is_mvg_pdf or is_especiales or is_cortesia or is_travel or is_employee or is_rss or is_agency_direct or is_neteurgt or is_netcysgt or is_uso_casa or is_certmvg or is_free
                 if lobby in ['nizuc', 'grand'] and is_wow:
                     strong_red = True
                     
