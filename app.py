@@ -165,8 +165,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
     if extension_rooms is None:
         extension_rooms = []
     extension_set = set(extension_rooms)
-    highlight_color = (0.75, 1.0, 0.75) # Pastel green color
-    red_color = (1.0, 0.65, 0.65) # Pastel red color
+    highlight_color = (0.6, 1.0, 0.6) # In-between green color
+    red_color = (1.0, 0.5, 0.5) # In-between red color
 
     total_highlights = 0
     total_green = 0
@@ -381,17 +381,17 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                             final_color = 'red'
                             extensions_found.add(word_text)
                             # Add "EXT." right next to the room number dynamically
-                            page.insert_text(fitz.Point(base_x + 6, w[3] - 2), "EXT.", fontsize=8, color=(0.9, 0.3, 0.3))
+                            page.insert_text(fitz.Point(base_x + 6, w[3] - 2), "EXT.", fontsize=8, color=(0.95, 0.15, 0.15))
                         elif is_neteurgt or is_netcysgt or is_to_eu:
-                            annot.set_colors(stroke=(1.0, 1.0, 0.6)) # Pastel Yellow
+                            annot.set_colors(stroke=(1.0, 1.0, 0.3)) # In-between Yellow
                             final_color = 'yellow'
                         elif in_excel:
                             is_promo_cert = data.get('certificado', False) and data.get('promo', False)
                             
                             if is_promo_cert:
-                                annot.set_colors(stroke=(0.65, 0.85, 1.0)) # Pastel Blue
+                                annot.set_colors(stroke=(0.55, 0.75, 1.0)) # In-between Blue
                             else:
-                                annot.set_colors(stroke=highlight_color) # pastel green
+                                annot.set_colors(stroke=highlight_color) # In-between green
                                 
                             final_color = 'green' # Keep logic color as green so C.O and grouping work normally
                             if word_text not in green_painted_rooms:
@@ -402,8 +402,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                                     
                             if is_promo_cert:
                                 # "P+" in purple, "C" in blue
-                                page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "P+", fontsize=8, color=(0.7, 0.4, 0.9))
-                                page.insert_text(fitz.Point(base_x + offset_x + 10, w[3] - 2), "C", fontsize=8, color=(0.5, 0.75, 1.0))
+                                page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "P+", fontsize=8, color=(0.8, 0.3, 0.9))
+                                page.insert_text(fitz.Point(base_x + offset_x + 10, w[3] - 2), "C", fontsize=8, color=(0.4, 0.6, 1.0))
                                 offset_x += 18
                         elif strong_red or data.get('mvg', False) or weak_red:
                             annot.set_colors(stroke=red_color)
@@ -413,16 +413,16 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         
                     # Handle text insertions
                     if is_checked_out and final_color == 'green':
-                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "C.O", fontsize=8, color=(0.9, 0.3, 0.3))
+                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "C.O", fontsize=8, color=(0.95, 0.15, 0.15))
                         offset_x += 18
                         
                     if is_no_show and final_color == 'green':
-                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "N.S.", fontsize=8, color=(0.9, 0.3, 0.3))
+                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "N.S.", fontsize=8, color=(0.95, 0.15, 0.15))
                         offset_x += 18
                         no_shows.add(word_text)
                         
                     if (is_neteurgt or is_netcysgt) and not is_to_eu:
-                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0.4, 0.4, 0.4))
+                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0.2, 0.2, 0.2))
                         offset_x += 25
                         
 
@@ -484,13 +484,13 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                             type_annot = page.add_highlight_annot(type_rect)
                             
                             if is_transfer_m_rule:
-                                type_annot.set_colors(stroke=red_color) # Pastel Red
+                                type_annot.set_colors(stroke=red_color) # In-between Red
                             elif data['certificado'] and data['promo']:
-                                type_annot.set_colors(stroke=(0.85, 0.65, 1.0)) # Pastel Purple
+                                type_annot.set_colors(stroke=(0.8, 0.5, 1.0)) # In-between Purple
                             elif data['certificado']:
-                                type_annot.set_colors(stroke=(0.65, 0.85, 1.0)) # Pastel Blue
+                                type_annot.set_colors(stroke=(0.55, 0.75, 1.0)) # In-between Blue
                             elif data['promo']:
-                                type_annot.set_colors(stroke=(0.85, 0.65, 1.0)) # Pastel Purple
+                                type_annot.set_colors(stroke=(0.8, 0.5, 1.0)) # In-between Purple
                             elif is_kids_white:
                                 type_annot.set_colors(stroke=(1.0, 0.8, 0.85)) # Very light pink
                                 
@@ -509,12 +509,12 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         if m_word:
                             rect_m = fitz.Rect(m_word[0], m_word[1], m_word[2], m_word[3])
                             annot_m = page.add_highlight_annot(rect_m)
-                            annot_m.set_colors(stroke=(1, 0, 0)) # Red highlight
+                            annot_m.set_colors(stroke=red_color) # In-between Red highlight
                             annot_m.update()
                             # Place N.M. at the far right end of the full row (after Language col)
                             full_row_words = [w2 for w2 in words if abs(w2[1] - w[1]) < 15]
                             nm_x = max(w2[2] for w2 in full_row_words) + 6 if full_row_words else m_word[2] + 12
-                            page.insert_text(fitz.Point(nm_x, m_word[3] - 2), "N.M.", fontsize=8, color=(1, 0, 0))
+                            page.insert_text(fitz.Point(nm_x, m_word[3] - 2), "N.M.", fontsize=8, color=(0.95, 0.15, 0.15))
                             
                 # Extract membership info for bracket linking
                 membership_text = ""
@@ -672,11 +672,11 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
             
     # Distinct bracket colors
     bracket_colors = [
-        (0.7, 0.4, 0.9), # Pastel Purple
-        (0.4, 0.8, 0.8), # Pastel Teal
-        (1.0, 0.7, 0.4), # Pastel Orange
-        (0.9, 0.5, 0.7), # Pastel Pink
-        (0.4, 0.6, 0.9), # Pastel Deep Blue
+        (0.65, 0.3, 0.85), # In-between Purple
+        (0.2, 0.7, 0.7), # In-between Teal
+        (1.0, 0.6, 0.2), # In-between Orange
+        (0.9, 0.35, 0.65), # In-between Pink
+        (0.2, 0.5, 0.85), # In-between Deep Blue
     ]
     
     # Pass 3: Draw brackets for membership groups
