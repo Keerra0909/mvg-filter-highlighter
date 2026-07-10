@@ -320,8 +320,10 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         if w2[4].lower() in ["checked", "out", "checkedout", "checked-out"]:
                             checked_out_rects.append(fitz.Rect(w2[0], w2[1], w2[2], w2[3]))
                 else:
-                    checked_words = [w2 for w2 in words if w2[4].lower() == 'checked' and abs(w2[1] - w[1]) < 15]
-                    out_words = [w2 for w2 in words if w2[4].lower() == 'out' and abs(w2[1] - w[1]) < 15]
+                    prev_y = page_room_y[idx-1] if idx > 0 else 0
+                    # Restrict search to current cell's vertical boundaries (between prev row and next row)
+                    checked_words = [w2 for w2 in words if w2[4].lower() == 'checked' and (prev_y + 5) < w2[1] < (next_y - 2)]
+                    out_words = [w2 for w2 in words if w2[4].lower() == 'out' and (prev_y + 5) < w2[1] < (next_y - 2)]
                     for cw in checked_words:
                         for ow in out_words:
                             # CHECKED must be above OUT and roughly aligned horizontally
