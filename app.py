@@ -740,18 +740,14 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         fallback_xs = [r['room_x1'] - 40 for r in bracket_rooms]
                         min_type_x = min(type_xs) if type_xs else min(fallback_xs)
                         
-                        m_x0 = max([r.get('membership_x0') or 0 for r in bracket_rooms])
-                        g_x0 = max([r.get('grupo_x0') or 0 for r in bracket_rooms])
-                        boundary_x = m_x0 + 60 if m_x0 > 0 else (g_x0 + 80 if g_x0 > 0 else min_type_x - 30)
-                        
-                        # Find the absolute rightmost edge of ANY text to the left of the boundary
+                        # Find the absolute rightmost edge of ANY text to the left of the Room Type column
                         page_words = page.get_text("words")
-                        left_words = [w for w in page_words if (min_y - 5) <= w[1] and w[3] <= (max_y + 5) and w[0] < boundary_x]
+                        left_words = [w for w in page_words if (min_y - 5) <= w[1] and w[3] <= (max_y + 5) and w[2] < min_type_x - 5]
                         
                         if left_words:
                             right_x = max(w[2] for w in left_words) + 14 # Extra offset for Grupo brackets
                         else:
-                            right_x = boundary_x + 6
+                            right_x = min_type_x - 14
                             
                         if right_x > min_type_x - 6:
                             right_x = min_type_x - 6
