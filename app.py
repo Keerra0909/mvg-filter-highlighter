@@ -94,8 +94,12 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
                                 reason_str = str(reason_val).lower()
                                 if 'certificado' in reason_str:
                                     has_certificado = True
+                                    
                                 if 'black' in reason_str and 'friday' in reason_str:
                                     has_promo = True
+                                    # Handle the specific case where it says "Y CO" (and Certificado) but got cut off
+                                    if 'y co' in reason_str:
+                                        has_certificado = True
                                 elif 'promo black' in reason_str:
                                     has_promo = True
                                 if 'mvg' in reason_str and 'moon vacation getaway' in reason_str:
