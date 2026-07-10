@@ -136,6 +136,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const successStatus = document.getElementById('success-status');
         if (successStatus) successStatus.classList.add('hidden');
         
+        const diagConsole = document.getElementById('diagnostic-console');
+        const diagLogs = document.getElementById('diagnostic-logs');
+        if (diagConsole) {
+            diagConsole.classList.remove('hidden');
+            diagLogs.innerHTML = `<div><span style="color:#60a5fa;">[${new Date().toLocaleTimeString()}]</span> Iniciando procesamiento...</div>`;
+            diagLogs.innerHTML += `<div><span style="color:#eab308;">[WAIT]</span> Subiendo Excel y PDF al servidor...</div>`;
+        }
+        
         const formData = new FormData(form);
         
         try {
@@ -149,6 +157,9 @@ document.addEventListener('DOMContentLoaded', () => {
             statusDiv.classList.add('hidden');
             
             if (response.ok) {
+                if (diagConsole) {
+                    diagLogs.innerHTML += `<div><span style="color:#4ade80;">[SUCCESS]</span> ¡Archivos procesados correctamente!</div>`;
+                }
                 const successStatus = document.getElementById('success-status');
                 if (successStatus) successStatus.classList.remove('hidden');
                 
@@ -269,6 +280,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 downloadBtn.href = data.download_url;
             } else {
+                if (diagConsole) {
+                    diagLogs.innerHTML += `<div><span style="color:#ef4444;">[ERROR]</span> El servidor regresó código ${response.status}</div>`;
+                    diagLogs.innerHTML += `<div style="color:#fca5a5; margin-top:5px;">Detalle: ${data.error || 'Error desconocido'}</div>`;
+                }
+                
                 const errorBox = document.getElementById('smart-error');
                 const errorText = document.getElementById('smart-error-text');
                 if (errorBox && errorText) {
@@ -282,16 +298,36 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             statusDiv.classList.add('hidden');
             form.classList.remove('hidden');
+            
+            if (diagConsole) {
+                diagLogs.innerHTML += `<div><span style="color:#ef4444;">[CRASH]</span> La aplicación se detuvo inesperadamente.</div>`;
+                diagLogs.innerHTML += `<div style="color:#fca5a5; margin-top:5px; white-space:pre-wrap;">Traceback: ${error.message}</div>`;
+            }
+            
             const errorBox = document.getElementById('smart-error');
             const errorText = document.getElementById('smart-error-text');
             if (errorBox && errorText) {
-                errorText.textContent = error.message;
+                errorText.textContent = `CRASH: ${error.message}`;
                 errorBox.classList.remove('hidden');
             } else {
                 alert('An error occurred: ' + error.message);
             }
         }
     });
+
+    // Copy log button
+    const copyLogBtn = document.getElementById('copy-log-btn');
+    if (copyLogBtn) {
+        copyLogBtn.addEventListener('click', () => {
+            const diagLogs = document.getElementById('diagnostic-logs');
+            if (diagLogs) {
+                navigator.clipboard.writeText(diagLogs.innerText).then(() => {
+                    copyLogBtn.textContent = '¡Copiado!';
+                    setTimeout(() => copyLogBtn.textContent = 'Copiar Log', 2000);
+                });
+            }
+        });
+    }
 
     const downloadImgBtn = document.getElementById('download-img-btn');
     if (downloadImgBtn) {
