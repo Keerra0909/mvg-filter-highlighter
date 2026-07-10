@@ -382,13 +382,25 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                             annot.set_colors(stroke=(1, 1, 0)) # Yellow
                             final_color = 'yellow'
                         elif in_excel:
-                            annot.set_colors(stroke=highlight_color) # green
-                            final_color = 'green'
+                            is_promo_cert = data.get('certificado', False) and data.get('promo', False)
+                            
+                            if is_promo_cert:
+                                annot.set_colors(stroke=(0.4, 0.7, 1.0)) # Blue
+                            else:
+                                annot.set_colors(stroke=highlight_color) # green
+                                
+                            final_color = 'green' # Keep logic color as green so C.O and grouping work normally
                             if word_text not in green_painted_rooms:
                                 green_painted_rooms.add(word_text)
                                 total_green += 1
                                 if data['underline']:
                                     total_presentations += 1
+                                    
+                            if is_promo_cert:
+                                # "P+" in purple, "C" in blue
+                                page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "P+", fontsize=8, color=(0.8, 0.4, 1.0))
+                                page.insert_text(fitz.Point(base_x + offset_x + 10, w[3] - 2), "C", fontsize=8, color=(0.4, 0.7, 1.0))
+                                offset_x += 18
                         elif strong_red or data.get('mvg', False) or weak_red:
                             annot.set_colors(stroke=red_color)
                             final_color = 'red'
