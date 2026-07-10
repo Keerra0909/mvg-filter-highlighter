@@ -486,7 +486,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                             if is_transfer_m_rule:
                                 type_annot.set_colors(stroke=red_color) # Red
                             elif data['certificado'] and data['promo']:
-                                type_annot.set_colors(stroke=(1.0, 0.6, 0.8)) # Pink
+                                type_annot.set_colors(stroke=(0.8, 0.4, 1.0)) # Purple
                             elif data['certificado']:
                                 type_annot.set_colors(stroke=(0.4, 0.7, 1.0)) # Blue
                             elif data['promo']:
