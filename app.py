@@ -271,9 +271,9 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                 
                 is_kids_only = False
                 if len(line_words) >= 2:
-                    # Scan the whole line for '0' adults followed by '>0' minors
+                    # Scan the whole line for '0' adults followed by any number of minors (even 0)
                     for i in range(len(line_words) - 1):
-                        if line_words[i] == '0' and line_words[i+1].isdigit() and int(line_words[i+1]) > 0:
+                        if line_words[i] == '0' and line_words[i+1].isdigit():
                             is_kids_only = True
                             break
 
@@ -425,9 +425,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0, 0, 0))
                         offset_x += 25
                         
-                    if is_kids_only and final_color in ('green', 'none'):
-                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "KIDS", fontsize=8, color=(0.53, 0.81, 0.98))
-                        offset_x += 20
+
                         
 
                     # Handle underline for checked out
@@ -464,7 +462,9 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                     if is_transfer_m_rule:
                         new_members.add(word_text)
                     
-                    if data['certificado'] or data['promo'] or is_transfer_m_rule:
+                    is_kids_white = is_kids_only and final_color == 'none'
+                    
+                    if data['certificado'] or data['promo'] or is_transfer_m_rule or is_kids_white:
                         type_word = None
                         if room_type_header_x0 is not None:
                             candidates = [w2 for w2 in words if abs(w2[1] - w[1]) < 5 and abs(w2[0] - room_type_header_x0) < 50]
@@ -491,6 +491,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                                 type_annot.set_colors(stroke=(0.4, 0.7, 1.0)) # Blue
                             elif data['promo']:
                                 type_annot.set_colors(stroke=(0.8, 0.4, 1.0)) # Purple
+                            elif is_kids_white:
+                                type_annot.set_colors(stroke=(1.0, 0.8, 0.85)) # Very light pink
                                 
                             type_annot.update()
                         else:
