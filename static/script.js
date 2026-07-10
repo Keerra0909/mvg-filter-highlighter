@@ -140,8 +140,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const diagLogs = document.getElementById('diagnostic-logs');
         if (diagConsole) {
             diagConsole.classList.remove('hidden');
-            diagLogs.innerHTML = `<div><span style="color:#60a5fa;">[${new Date().toLocaleTimeString()}]</span> Iniciando procesamiento...</div>`;
-            diagLogs.innerHTML += `<div><span style="color:#eab308;">[WAIT]</span> Subiendo Excel y PDF al servidor...</div>`;
+            diagLogs.innerHTML = `<li style="margin-bottom: 5px;">🟢 <span>Iniciando procesamiento...</span></li>`;
+            diagLogs.innerHTML += `<li style="margin-bottom: 5px;">🟢 <span>Subiendo archivos y validando datos...</span></li>`;
         }
         
         const formData = new FormData(form);
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (response.ok) {
                 if (diagConsole) {
-                    diagLogs.innerHTML += `<div><span style="color:#4ade80;">[SUCCESS]</span> ¡Archivos procesados correctamente!</div>`;
+                    diagLogs.innerHTML += `<li style="margin-bottom: 5px;">🟢 <span>¡Archivos procesados correctamente!</span></li>`;
                 }
                 const successStatus = document.getElementById('success-status');
                 if (successStatus) successStatus.classList.remove('hidden');
@@ -281,8 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 downloadBtn.href = data.download_url;
             } else {
                 if (diagConsole) {
-                    diagLogs.innerHTML += `<div><span style="color:#ef4444;">[ERROR]</span> El servidor regresó código ${response.status}</div>`;
-                    diagLogs.innerHTML += `<div style="color:#fca5a5; margin-top:5px;">Detalle: ${data.error || 'Error desconocido'}</div>`;
+                    diagLogs.innerHTML += `<li style="margin-bottom: 5px;">🔴 <span style="color: #fca5a5;">ERROR: ${data.error || 'El servidor reportó una falla.'}</span></li>`;
                 }
                 
                 const errorBox = document.getElementById('smart-error');
@@ -300,8 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
             form.classList.remove('hidden');
             
             if (diagConsole) {
-                diagLogs.innerHTML += `<div><span style="color:#ef4444;">[CRASH]</span> La aplicación se detuvo inesperadamente.</div>`;
-                diagLogs.innerHTML += `<div style="color:#fca5a5; margin-top:5px; white-space:pre-wrap;">Traceback: ${error.message}</div>`;
+                diagLogs.innerHTML += `<li style="margin-bottom: 5px;">🔴 <span style="color: #fca5a5;">CRASH: La aplicación se detuvo inesperadamente (${error.message}).</span></li>`;
             }
             
             const errorBox = document.getElementById('smart-error');
