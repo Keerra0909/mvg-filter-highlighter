@@ -220,6 +220,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('stat-noshows').textContent = 'None';
                         document.getElementById('label-noshows').textContent = 'No Show';
                     }
+
+                    if (data.stats.extensions && data.stats.extensions.length > 0) {
+                        document.getElementById('stat-extensions').textContent = data.stats.extensions.join(', ');
+                        document.getElementById('label-extensions').textContent = `${data.stats.extensions.length} Extensions`;
+                    } else {
+                        document.getElementById('stat-extensions').textContent = 'None';
+                        document.getElementById('label-extensions').textContent = 'Extensions';
+                    }
                     
                     const movedRooms = data.stats.moved_rooms || [];
                     const missingRooms = data.stats.missing_rooms || [];
@@ -253,8 +261,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const numNewMembers = (data.stats.new_members && data.stats.new_members.length) ? data.stats.new_members.length : 0;
                     const numCheckouts = (data.stats.checkouts && data.stats.checkouts.length) ? data.stats.checkouts.length : 0;
                     const numNoShows = (data.stats.no_shows && data.stats.no_shows.length) ? data.stats.no_shows.length : 0;
+                    const numExtensions = (data.stats.extensions && data.stats.extensions.length) ? data.stats.extensions.length : 0;
                     
-                    const pitchableRooms = excelTotal - numDuplicates - numNewMembers - numCheckouts - numNoShows;
+                    const pitchableRooms = excelTotal - numDuplicates - numNewMembers - numCheckouts - numNoShows - numExtensions;
                     document.getElementById('stat-pitchable').textContent = pitchableRooms;
                 }
                 

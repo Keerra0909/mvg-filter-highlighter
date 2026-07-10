@@ -156,8 +156,11 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
     print(f"Extracted {len(room_data)} unique rooms")
     return room_data, list(duplicate_rooms)
 
-def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
+def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_rooms=None):
     doc = fitz.open(pdf_path)
+    if extension_rooms is None:
+        extension_rooms = []
+    extension_set = set(extension_rooms)
     highlight_color = (0.5, 1.0, 0.5) # Light green color
     red_color = (1.0, 0.4, 0.4) # Light red color
 
@@ -170,6 +173,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
     new_members = set()
     checkouts = set()
     no_shows = set()
+    extensions_found = set()
     
     f_suite_candidates = []
     
@@ -350,7 +354,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                     
                 data = room_data.get(word_text, {'underline': False, 'certificado': False, 'promo': False, 'mvg': False})
                 
-                has_highlight = in_excel or strong_red or weak_red or is_neteurgt or is_netcysgt or is_to_eu
+                is_extension = word_text in extension_set
+                has_highlight = in_excel or strong_red or weak_red or is_neteurgt or is_netcysgt or is_to_eu or is_extension
                 
                 final_color = 'none'
                 offset_x = 8 # Add a small buffer after the last word
@@ -361,7 +366,13 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
                         annot = page.add_highlight_annot(rect)
                         
                         # Apply colors based on priority
-                        if is_neteurgt or is_netcysgt or is_to_eu:
+                        if is_extension:
+                            annot.set_colors(stroke=red_color)
+                            final_color = 'red'
+                            extensions_found.add(word_text)
+                            # Add "EXT." right next to the room number
+                            page.insert_text(fitz.Point(w[2] + 4, w[3] - 2), "EXT.", fontsize=8, color=(1, 0, 0))
+                        elif is_neteurgt or is_netcysgt or is_to_eu:
                             annot.set_colors(stroke=(1, 1, 0)) # Yellow
                             final_color = 'yellow'
                         elif in_excel:
@@ -876,6 +887,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise'):
         'new_members': sorted(list(new_members)),
         'checkouts': sorted(green_checkouts),
         'no_shows': sorted(list(no_shows)),
+        'extensions': sorted(list(extensions_found)),
         'processed_rooms_list': list(processed_rooms),
         'moved_rooms': moved_rooms_log
     }
@@ -913,8 +925,12 @@ def process_files():
         if not rooms:
             return jsonify({'error': 'Could not find any room numbers in the Excel file for this lobby.'}), 400
             
+        extensions_raw = request.form.get('extensions_rooms', '')
+        import re
+        extension_list = re.findall(r'\d+', extensions_raw)
+            
         # 2. Highlight PDF
-        stats = highlight_pdf(pdf_path, rooms, output_pdf_path, lobby)
+        stats = highlight_pdf(pdf_path, rooms, output_pdf_path, lobby, extension_rooms=extension_list)
         
         # Filter duplicates: Only show duplicates if that room was actually found in the PDF
         processed_rooms_set = set(stats['processed_rooms_list'])
