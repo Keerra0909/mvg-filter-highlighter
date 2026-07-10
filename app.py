@@ -360,6 +360,10 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                 final_color = 'none'
                 offset_x = 8 # Add a small buffer after the last word
                 
+                # Pre-calculate base_x to avoid drawing text over existing status letters (like 'E', 'VR')
+                right_words = [w2 for w2 in line_words_raw if w2[0] >= w[0]]
+                base_x = max(w2[2] for w2 in right_words) if right_words else w[2]
+                
                 if has_highlight or is_checked_out or is_transfer or is_kids_only or is_no_show:
                     if has_highlight:
                         rect = fitz.Rect(w[0], w[1], w[2], w[3])
@@ -370,8 +374,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                             annot.set_colors(stroke=red_color)
                             final_color = 'red'
                             extensions_found.add(word_text)
-                            # Add "EXT." right next to the room number
-                            page.insert_text(fitz.Point(w[2] + 4, w[3] - 2), "EXT.", fontsize=8, color=(1, 0, 0))
+                            # Add "EXT." right next to the room number dynamically
+                            page.insert_text(fitz.Point(base_x + 6, w[3] - 2), "EXT.", fontsize=8, color=(1, 0, 0))
                         elif is_neteurgt or is_netcysgt or is_to_eu:
                             annot.set_colors(stroke=(1, 1, 0)) # Yellow
                             final_color = 'yellow'
@@ -390,9 +394,6 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         annot.update()
                         
                     # Handle text insertions
-                    right_words = [w2 for w2 in line_words_raw if w2[0] >= w[0]]
-                    base_x = max(w2[2] for w2 in right_words) if right_words else w[2]
-                    
                     if is_checked_out and final_color == 'green':
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "C.O", fontsize=8, color=(1, 0, 0))
                         offset_x += 18
@@ -529,10 +530,13 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                 grupo_right_edge = None
                 if grupo_x0 is not None:
                     import re
-                    # Stop Grupo extraction before Membership column starts
+                    # Stop Grupo extraction before Membership column or Room Type column starts
                     grupo_max_x = grupo_x0 + 120
                     if membership_x0 and membership_x0 > grupo_x0:
                         grupo_max_x = min(grupo_max_x, membership_x0 - 5)
+                    if room_type_header_x0 and room_type_header_x0 > grupo_x0:
+                        grupo_max_x = min(grupo_max_x, room_type_header_x0 - 5)
+                        
                     # Only grab words on the SAME line (we only need the number now, multiline names don't matter)
                     g_words = [w2 for w2 in words if w2[1] - 3 <= w_mid <= w2[3] + 3 and (grupo_x0 - 5) <= w2[0] <= grupo_max_x]
                     if g_words:
@@ -543,7 +547,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                             if grp_match:
                                 grupo_text = raw_grp
                                 grupo_key = grp_match.group(0)  # use ONLY the number for grouping
-                            elif len(raw_grp) > 5:
+                            elif len(raw_grp) > 5 and (' ' in raw_grp or '-' in raw_grp):
                                 grupo_text = raw_grp
                                 # Fallback for text-based groups: normalize alphanumeric characters
                                 grupo_key = re.sub(r'[^a-zA-Z0-9]', '', raw_grp).upper()
