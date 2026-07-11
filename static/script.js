@@ -313,20 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Copy log button
-    const copyLogBtn = document.getElementById('copy-log-btn');
-    if (copyLogBtn) {
-        copyLogBtn.addEventListener('click', () => {
-            const diagLogs = document.getElementById('diagnostic-logs');
-            if (diagLogs) {
-                navigator.clipboard.writeText(diagLogs.innerText).then(() => {
-                    copyLogBtn.textContent = '¡Copiado!';
-                    setTimeout(() => copyLogBtn.textContent = 'Copiar Log', 2000);
-                });
-            }
-        });
-    }
-
     const downloadImgBtn = document.getElementById('download-img-btn');
     if (downloadImgBtn) {
         downloadImgBtn.addEventListener('click', () => {
