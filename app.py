@@ -492,9 +492,14 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                             elif data['promo']:
                                 type_annot.set_colors(stroke=(0.8, 0.5, 1.0)) # In-between Purple
                             elif is_kids_white:
-                                type_annot.set_colors(stroke=(1.0, 0.8, 0.85)) # Very light pink
+                                type_annot.set_colors(stroke=(1.0, 0.4, 0.8)) # Vibrant Pink
                                 
                             type_annot.update()
+                            
+                            # Add 'kids' text dynamically next to the room number
+                            if is_kids_white:
+                                page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "kids", fontsize=8, color=(1.0, 0.4, 0.8))
+                                offset_x += 18
                         else:
                             print(f"WARNING: Could not find Room Type text for room {word_text}")
                         
