@@ -115,6 +115,15 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedLobby.value = card.dataset.lobby;
             const name = card.querySelector('.lobby-name').textContent;
             document.getElementById('app-lobby-label').textContent = '📍 ' + name;
+            
+            // Clear previous results when selecting a new lobby
+            if (resultDiv) resultDiv.classList.add('hidden');
+            if (statusDiv) statusDiv.classList.add('hidden');
+            const successStatus = document.getElementById('success-status');
+            if (successStatus) successStatus.classList.add('hidden');
+            const diagConsole = document.getElementById('diagnostic-console');
+            if (diagConsole) diagConsole.classList.add('hidden');
+            
             setTimeout(() => showScreen(screenApp), 280);
         });
     });
