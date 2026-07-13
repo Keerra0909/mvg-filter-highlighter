@@ -383,20 +383,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     link.download = 'Resumen_Cuartos.png';
                     link.href = canvas.toDataURL('image/png');
                     
-                    // iOS Safari does not support link.click() downloads — open in new tab instead
+                    // iOS Safari blocks window.open() in async tasks. Show an in-page modal instead.
                     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
                     if (isIOS) {
-                        // Open image in new tab — user can long-press → Save to Photos
-                        const newTab = window.open();
-                        newTab.document.write(`
-                            <html><body style="margin:0;background:#000;display:flex;flex-direction:column;align-items:center;padding:20px;">
-                            <p style="color:white;font-family:sans-serif;font-size:16px;margin-bottom:12px;">
-                                📸 Mantén presionada la imagen → "Agregar a Fotos"
-                            </p>
-                            <img src="${canvas.toDataURL('image/png')}" style="max-width:100%;border-radius:12px;">
-                            </body></html>
-                        `);
+                        const overlay = document.createElement('div');
+                        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+                        
+                        const text = document.createElement('p');
+                        text.textContent = '📸 Mantén presionada la imagen para guardarla';
+                        text.style.cssText = 'color:white;font-family:sans-serif;font-size:16px;margin-bottom:20px;text-align:center;font-weight:bold;';
+                        
+                        const img = document.createElement('img');
+                        img.src = canvas.toDataURL('image/png');
+                        img.style.cssText = 'max-width:100%;max-height:75vh;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.5);';
+                        
+                        const closeBtn = document.createElement('button');
+                        closeBtn.textContent = '❌ Cerrar';
+                        closeBtn.style.cssText = 'margin-top:25px;padding:12px 30px;background:#ef4444;color:white;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;';
+                        closeBtn.onclick = () => document.body.removeChild(overlay);
+                        
+                        overlay.appendChild(text);
+                        overlay.appendChild(img);
+                        overlay.appendChild(closeBtn);
+                        document.body.appendChild(overlay);
                     } else {
                         link.click();
                     }
