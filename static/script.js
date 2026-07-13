@@ -365,11 +365,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     summaryGrid.style.padding = '';
                     summaryGrid.style.borderRadius = '';
 
-                    // Trigger download
                     const link = document.createElement('a');
                     link.download = 'Resumen_Cuartos.png';
                     link.href = canvas.toDataURL('image/png');
-                    link.click();
+                    
+                    // iOS Safari does not support link.click() downloads — open in new tab instead
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                    if (isIOS) {
+                        // Open image in new tab — user can long-press → Save to Photos
+                        const newTab = window.open();
+                        newTab.document.write(`
+                            <html><body style="margin:0;background:#000;display:flex;flex-direction:column;align-items:center;padding:20px;">
+                            <p style="color:white;font-family:sans-serif;font-size:16px;margin-bottom:12px;">
+                                📸 Mantén presionada la imagen → "Agregar a Fotos"
+                            </p>
+                            <img src="${canvas.toDataURL('image/png')}" style="max-width:100%;border-radius:12px;">
+                            </body></html>
+                        `);
+                    } else {
+                        link.click();
+                    }
                 });
             }, 100);
         });
