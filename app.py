@@ -181,6 +181,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
     checkouts = set()
     no_shows = set()
     extensions_found = set()
+    pitchadas_found = set()
     
     f_suite_candidates = []
     
@@ -430,6 +431,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         
                     is_pitchada = word_text in pitchadas_set
                     if is_pitchada and final_color != 'none':
+                        pitchadas_found.add(word_text)
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "PITCHADA", fontsize=8, color=(1.0, 0.5, 0.0))
                         offset_x += 45
                         
@@ -923,6 +925,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
         'checkouts': sorted(green_checkouts),
         'no_shows': sorted(list(no_shows)),
         'extensions': sorted(list(extensions_found)),
+        'pitchadas': sorted(list(pitchadas_found)),
         'processed_rooms_list': list(processed_rooms),
         'moved_rooms': moved_rooms_log
     }

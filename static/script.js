@@ -249,6 +249,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         document.getElementById('label-extensions').textContent = 'Extensions';
                     }
                     
+                    if (data.stats.pitchadas && data.stats.pitchadas.length > 0) {
+                        document.getElementById('stat-pitchadas').textContent = data.stats.pitchadas.join(', ');
+                        document.getElementById('label-pitchadas').textContent = `${data.stats.pitchadas.length} Rooms Pitchadas`;
+                    } else {
+                        document.getElementById('stat-pitchadas').textContent = 'None';
+                        document.getElementById('label-pitchadas').textContent = 'Rooms Pitchadas';
+                    }
+                    
                     const movedRooms = data.stats.moved_rooms || [];
                     const missingRooms = data.stats.missing_rooms || [];
                     
@@ -282,8 +290,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     const numCheckouts = (data.stats.checkouts && data.stats.checkouts.length) ? data.stats.checkouts.length : 0;
                     const numNoShows = (data.stats.no_shows && data.stats.no_shows.length) ? data.stats.no_shows.length : 0;
                     const numExtensions = (data.stats.extensions && data.stats.extensions.length) ? data.stats.extensions.length : 0;
+                    const numPitchadas = (data.stats.pitchadas && data.stats.pitchadas.length) ? data.stats.pitchadas.length : 0;
                     
-                    const pitchableRooms = excelTotal - numDuplicates - numNewMembers - numCheckouts - numNoShows - numExtensions;
+                    // Calculate true missing (rooms that are missing and NOT fuzzy matched/moved)
+                    const trueMissingRooms = missingRooms.filter(m => !movedRooms.some(moved => moved.old === m));
+                    const numTrueMissing = trueMissingRooms.length;
+                    
+                    const pitchableRooms = excelTotal - numDuplicates - numNewMembers - numCheckouts - numNoShows - numExtensions - numPitchadas - numTrueMissing;
                     document.getElementById('stat-pitchable').textContent = pitchableRooms;
                 }
                 
