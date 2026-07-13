@@ -1,6 +1,7 @@
 import os
 import io
 import re
+import json
 import pandas as pd
 import fitz  # PyMuPDF
 from flask import Flask, request, send_file, render_template, jsonify
@@ -1003,6 +1004,49 @@ def process_files():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ── Password helpers ──────────────────────────────────────────
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
+
+def get_password():
+    try:
+        with open(CONFIG_PATH, 'r') as f:
+            return json.load(f).get('password', 'MVGMVG')
+    except Exception:
+        return 'MVGMVG'
+
+def set_password(new_pw):
+    with open(CONFIG_PATH, 'w') as f:
+        json.dump({'password': new_pw}, f)
+
+@app.route('/check-password', methods=['POST'])
+def check_password():
+    data = request.get_json()
+    entered = (data.get('password') or '').strip().upper()
+    correct = get_password().strip().upper()
+    if entered == correct:
+        return jsonify({'ok': True})
+    return jsonify({'ok': False}), 401
+
+@app.route('/mvg-admin-9x7')
+def admin_panel():
+    return render_template('admin.html')
+
+@app.route('/mvg-admin-9x7/change', methods=['POST'])
+def change_password():
+    data = request.get_json()
+    current = (data.get('current') or '').strip().upper()
+    new_pw  = (data.get('new_password') or '').strip()
+    confirm = (data.get('confirm') or '').strip()
+    if current != get_password().strip().upper():
+        return jsonify({'ok': False, 'error': 'Current password is incorrect.'}), 401
+    if not new_pw or len(new_pw) < 4:
+        return jsonify({'ok': False, 'error': 'New password must be at least 4 characters.'}), 400
+    if new_pw != confirm:
+        return jsonify({'ok': False, 'error': 'Passwords do not match.'}), 400
+    set_password(new_pw)
+    return jsonify({'ok': True})
+
+# ──────────────────────────────────────────────────────────────
 @app.route('/download/<filename>')
 def download_file(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)

@@ -99,12 +99,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Step 1 → Step 2: Password check
     passwordBtn.addEventListener('click', () => {
-        if (passwordInput.value.trim().toUpperCase() === 'MVGMVG') {
-            localStorage.setItem('mvg_auth_timestamp', Date.now().toString());
-            showScreen(screenLobby);
-        } else {
-            passwordError.style.display = 'block';
-        }
+        const entered = passwordInput.value.trim();
+        if (!entered) return;
+        passwordBtn.disabled = true;
+        passwordBtn.textContent = '...';
+        fetch('/check-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: entered})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                localStorage.setItem('mvg_auth_timestamp', Date.now().toString());
+                showScreen(screenLobby);
+            } else {
+                passwordError.style.display = 'block';
+            }
+        })
+        .catch(() => { passwordError.style.display = 'block'; })
+        .finally(() => { passwordBtn.disabled = false; passwordBtn.textContent = 'Enter'; });
     });
     passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') passwordBtn.click(); });
 
