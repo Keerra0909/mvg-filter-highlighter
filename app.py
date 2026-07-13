@@ -1014,10 +1014,6 @@ def get_password():
     except Exception:
         return 'MVGMVG'
 
-def set_password(new_pw):
-    with open(CONFIG_PATH, 'w') as f:
-        json.dump({'password': new_pw}, f)
-
 @app.route('/check-password', methods=['POST'])
 def check_password():
     data = request.get_json()
@@ -1026,25 +1022,6 @@ def check_password():
     if entered == correct:
         return jsonify({'ok': True})
     return jsonify({'ok': False}), 401
-
-@app.route('/mvg-admin-9x7')
-def admin_panel():
-    return render_template('admin.html')
-
-@app.route('/mvg-admin-9x7/change', methods=['POST'])
-def change_password():
-    data = request.get_json()
-    current = (data.get('current') or '').strip().upper()
-    new_pw  = (data.get('new_password') or '').strip()
-    confirm = (data.get('confirm') or '').strip()
-    if current != get_password().strip().upper():
-        return jsonify({'ok': False, 'error': 'Current password is incorrect.'}), 401
-    if not new_pw or len(new_pw) < 4:
-        return jsonify({'ok': False, 'error': 'New password must be at least 4 characters.'}), 400
-    if new_pw != confirm:
-        return jsonify({'ok': False, 'error': 'Passwords do not match.'}), 400
-    set_password(new_pw)
-    return jsonify({'ok': True})
 
 # ──────────────────────────────────────────────────────────────
 @app.route('/download/<filename>')
