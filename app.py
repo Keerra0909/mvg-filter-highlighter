@@ -160,11 +160,14 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
     print(f"Extracted {len(room_data)} unique rooms")
     return room_data, list(duplicate_rooms)
 
-def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_rooms=None):
+def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_rooms=None, pitchadas_rooms=None):
     doc = fitz.open(pdf_path)
     if extension_rooms is None:
         extension_rooms = []
+    if pitchadas_rooms is None:
+        pitchadas_rooms = []
     extension_set = set(extension_rooms)
+    pitchadas_set = set(pitchadas_rooms)
     highlight_color = (0.6, 1.0, 0.6) # In-between green color
     red_color = (1.0, 0.5, 0.5) # In-between red color
 
@@ -425,8 +428,15 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0.2, 0.2, 0.2))
                         offset_x += 25
                         
-
+                    is_pitchada = word_text in pitchadas_set
+                    if is_pitchada and final_color != 'none':
+                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "PITCHADA", fontsize=8, color=(1.0, 0.5, 0.0))
+                        offset_x += 45
                         
+                        room_rect = fitz.Rect(w[0], w[1], w[2], w[3])
+                        pitchada_underline = page.add_underline_annot(room_rect)
+                        pitchada_underline.set_colors(stroke=(1.0, 0.5, 0.0)) # Orange
+                        pitchada_underline.update()
 
                     # Handle underline for checked out
                     if is_checked_out and final_color == 'green':
@@ -951,11 +961,13 @@ def process_files():
             return jsonify({'error': 'Could not find any room numbers in the Excel file for this lobby.'}), 400
             
         extensions_raw = request.form.get('extensions_rooms', '')
+        pitchadas_raw = request.form.get('pitchadas_rooms', '')
         import re
         extension_list = re.findall(r'\d+', extensions_raw)
+        pitchadas_list = re.findall(r'\d+', pitchadas_raw)
             
         # 2. Highlight PDF
-        stats = highlight_pdf(pdf_path, rooms, output_pdf_path, lobby, extension_rooms=extension_list)
+        stats = highlight_pdf(pdf_path, rooms, output_pdf_path, lobby, extension_rooms=extension_list, pitchadas_rooms=pitchadas_list)
         
         # Filter duplicates: Only show duplicates if that room was actually found in the PDF
         processed_rooms_set = set(stats['processed_rooms_list'])
