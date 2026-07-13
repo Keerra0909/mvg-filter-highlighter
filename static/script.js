@@ -276,8 +276,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         document.getElementById('stat-missing').innerHTML = htmlContent;
                         
-                        const totalCount = missingRooms.length + movedRooms.length;
-                        document.getElementById('label-missing').textContent = `${totalCount} Missing from PDF`;
+                        // Build smart label: "3 Encontradas — 7 Missing from PDF"
+                        let labelParts = [];
+                        if (movedRooms.length > 0) labelParts.push(`${movedRooms.length} Encontradas`);
+                        if (missingRooms.length > 0) labelParts.push(`${missingRooms.length} Missing from PDF`);
+                        document.getElementById('label-missing').textContent = labelParts.join(' — ');
                     } else {
                         document.getElementById('stat-missing').textContent = 'None';
                         document.getElementById('label-missing').textContent = 'Missing from PDF';
