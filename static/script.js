@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const screenLobby    = document.getElementById('screen-lobby');
     const screenApp      = document.getElementById('screen-app');
 
+    const usernameInput  = document.getElementById('username-input');
     const passwordInput  = document.getElementById('password-input');
     const passwordBtn    = document.getElementById('password-btn');
     const passwordError  = document.getElementById('password-error');
@@ -99,28 +100,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Step 1 → Step 2: Password check
     passwordBtn.addEventListener('click', () => {
+        const username = usernameInput.value.trim();
         const entered = passwordInput.value.trim();
-        if (!entered) return;
+        if (!username || !entered) return;
         passwordBtn.disabled = true;
         passwordBtn.textContent = '...';
-        fetch('/check-password', {
+        fetch('/login', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({password: entered})
+            body: JSON.stringify({username: username, password: entered})
         })
-        .then(r => r.json())
-        .then(data => {
+        .then(r => r.json().then(data => ({status: r.status, data})))
+        .then(({status, data}) => {
             if (data.ok) {
+                if (data.is_admin) {
+                    window.location.href = '/mvg-pagos-admin';
+                    return;
+                }
                 localStorage.setItem('mvg_auth_timestamp', Date.now().toString());
                 showScreen(screenLobby);
             } else {
+                passwordError.textContent = data.error || 'Credenciales incorrectas';
                 passwordError.style.display = 'block';
             }
         })
-        .catch(() => { passwordError.style.display = 'block'; })
-        .finally(() => { passwordBtn.disabled = false; passwordBtn.textContent = 'Enter'; });
+        .catch(() => { 
+            passwordError.textContent = 'Error de conexión';
+            passwordError.style.display = 'block'; 
+        })
+        .finally(() => { passwordBtn.disabled = false; passwordBtn.textContent = 'Entrar'; });
     });
     passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') passwordBtn.click(); });
+    usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') passwordInput.focus(); });
 
     // Step 2 → Step 3: Lobby selection
     document.querySelectorAll('.lobby-card').forEach(card => {

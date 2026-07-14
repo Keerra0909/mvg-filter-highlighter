@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin - Pagos</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #38bdf8;
+            margin-bottom: 5px;
+        }
+        p.subtitle {
+            color: #94a3b8;
+            margin-bottom: 25px;
+        }
+        .dashboard {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .user-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #334155;
+        }
+        .user-row:last-child {
+            border-bottom: none;
+        }
+        .user-name {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .toggle-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-paid {
+            background-color: #10b981;
+            color: white;
+        }
+        .btn-unpaid {
+            background-color: #ef4444;
+            color: white;
+        }
+        .back-btn {
+            margin-top: 30px;
+            padding: 10px 20px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .add-user-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 20px;
+        }
+        .add-user-input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: white;
+            font-size: 14px;
+        }
+        .add-user-btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .del-btn {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dashboard de Pagos 💰</h1>
+    <p class="subtitle">Administra los accesos de tus compañeros (150 MXN/mes)</p>
+
+    <div class="dashboard">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #334155; padding-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+            <div class="add-user-form" style="margin-bottom: 0; border: none; padding: 0; flex: 1; min-width: 250px;">
+                <input type="text" id="new-username" class="add-user-input" placeholder="Nuevo compañero...">
+                <button class="add-user-btn" onclick="addUser()">Agregar</button>
+            </div>
+            <button onclick="resetMonth()" style="background-color: #f59e0b; color: white; border: none; border-radius: 8px; padding: 10px 15px; cursor: pointer; font-weight: bold; white-space: nowrap;">⚠️ Iniciar Nuevo Mes</button>
+        </div>
+        
+        <div id="users-container">
+            <!-- Users will be loaded here -->
+            <p style="text-align:center; color:#94a3b8;">Cargando usuarios...</p>
+        </div>
+    </div>
+
+    <a href="/" class="back-btn">⬅ Volver a la App</a>
+
+    <script>
+        async function loadUsers() {
+            try {
+                const res = await fetch('/api/admin/users');
+                const users = await res.json();
+                
+                const container = document.getElementById('users-container');
+                container.innerHTML = '';
+                
+                users.forEach(user => {
+                    const row = document.createElement('div');
+                    row.className = 'user-row';
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'user-name';
+                    nameSpan.textContent = user.username;
+                    
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'actions';
+                    
+                    const btn = document.createElement('button');
+                    btn.className = 'toggle-btn ' + (user.has_paid ? 'btn-paid' : 'btn-unpaid');
+                    btn.textContent = user.has_paid ? '✅ PAGADO' : '❌ DEBE';
+                    btn.onclick = () => togglePayment(user.id, !user.has_paid, btn);
+                    
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'del-btn';
+                    delBtn.textContent = '🗑️';
+                    delBtn.title = 'Eliminar usuario';
+                    delBtn.onclick = () => deleteUser(user.id, user.username);
+                    
+                    actionsDiv.appendChild(btn);
+                    actionsDiv.appendChild(delBtn);
+                    
+                    row.appendChild(nameSpan);
+                    row.appendChild(actionsDiv);
+                    container.appendChild(row);
+                });
+            } catch (err) {
+                console.error(err);
+                document.getElementById('users-container').innerHTML = '<p style="color:#ef4444; text-align:center;">Error al cargar usuarios.</p>';
+            }
+        }
+
+        async function togglePayment(userId, newStatus, btnElement) {
+            const oldClass = newStatus ? 'btn-unpaid' : 'btn-paid';
+            const newClass = newStatus ? 'btn-paid' : 'btn-unpaid';
+            btnElement.classList.remove(oldClass);
+            btnElement.classList.add(newClass);
+            btnElement.textContent = newStatus ? '✅ PAGADO' : '❌ DEBE';
+            
+            try {
+                await fetch('/api/admin/toggle-payment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: userId, has_paid: newStatus })
+                });
+            } catch (err) {
+                alert("Error al guardar el cambio");
+                loadUsers();
+            }
+        }
+
+        async function addUser() {
+            const input = document.getElementById('new-username');
+            const username = input.value.trim();
+            if (!username) return;
+            
+            try {
+                const res = await fetch('/api/admin/users/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    input.value = '';
+                    loadUsers();
+                } else {
+                    alert(data.error || "Error al agregar usuario");
+                }
+            } catch (err) {
+                alert("Error de conexión");
+            }
+        }
+
+        async function deleteUser(id, username) {
+            if (!confirm(`¿Estás seguro de que quieres eliminar a ${username}?\nYa no podrá entrar a la app.`)) return;
+            
+            try {
+                const res = await fetch('/api/admin/users/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    loadUsers();
+                } else {
+                    alert(data.error || "Error al eliminar");
+                }
+            } catch (err) {
+                alert("Error de conexión");
+            }
+        }
+
+        async function resetMonth() {
+            if (!confirm(`¿Estás seguro de iniciar un nuevo mes?\n\nEsto regresará a TODOS tus compañeros a "❌ DEBE" y les bloqueará el acceso hasta que te vuelvan a pagar.`)) return;
+            
+            try {
+                const res = await fetch('/api/admin/users/reset', { method: 'POST' });
+                const data = await res.json();
+                if (data.ok) {
+                    loadUsers();
+                    alert("¡Nuevo mes iniciado! Todos los accesos han sido bloqueados.");
+                }
+            } catch (err) {
+                alert("Error de conexión");
+            }
+        }
+
+        window.onload = loadUsers;
+    </script>
+</body>
+</html>

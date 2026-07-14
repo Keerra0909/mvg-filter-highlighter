@@ -2,6 +2,7 @@ import os
 import io
 import re
 import json
+import sqlite3
 import pandas as pd
 import fitz  # PyMuPDF
 from flask import Flask, request, send_file, render_template, jsonify
@@ -1004,24 +1005,128 @@ def process_files():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ── Password helpers ──────────────────────────────────────────
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
+# ── DB & Auth Helpers ──────────────────────────────────────────
+DB_PATH = os.path.join(os.path.dirname(__file__), 'pagos.db')
 
-def get_password():
-    try:
-        with open(CONFIG_PATH, 'r') as f:
-            return json.load(f).get('password', 'MVGMVG')
-    except Exception:
-        return 'MVGMVG'
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-@app.route('/check-password', methods=['POST'])
-def check_password():
+def init_db():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            has_paid BOOLEAN NOT NULL DEFAULT 0
+        )
+    ''')
+    
+    # Seed initial users (excluding Pancho, Andres G, Paolo)
+    initial_users = [
+        "ADRIAN", "ALEX", "ANA M", "ANDERSON", "ANDRES A", "BONJO", "BRUNO", 
+        "CHRIS", "ERICK", "GALA", "GALAOR", "GONZALO", "ISA", "JOSEFINA", "JP", 
+        "JUANJO JJ", "LEONARDO", "MICHELLE", "MIKE", "MONTSE", "NANCY", "NONO", 
+        "RICARDO", "RICKY", "SEBASTIAN", "SERGIO", "TONY", "TOÑO"
+    ]
+    
+    for u in initial_users:
+        c.execute("INSERT OR IGNORE INTO users (username, password, has_paid) VALUES (?, ?, ?)", (u, "MVGMVG", 0))
+    
+    conn.commit()
+    conn.close()
+
+# Initialize DB on startup
+init_db()
+
+@app.route('/login', methods=['POST'])
+def login():
     data = request.get_json()
-    entered = (data.get('password') or '').strip().upper()
-    correct = get_password().strip().upper()
-    if entered == correct:
-        return jsonify({'ok': True})
-    return jsonify({'ok': False}), 401
+    username = (data.get('username') or '').strip().upper()
+    password = (data.get('password') or '').strip()
+    
+    if username == 'ADMIN' and password == 'KEERRA2026':
+        return jsonify({'ok': True, 'is_admin': True})
+        
+    conn = get_db()
+    user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    conn.close()
+    
+    if not user:
+        return jsonify({'ok': False, 'error': 'Usuario no encontrado.'}), 404
+        
+    if user['password'] != password:
+        return jsonify({'ok': False, 'error': 'Contraseña incorrecta.'}), 401
+        
+    if not user['has_paid']:
+        return jsonify({'ok': False, 'error': 'Acceso bloqueado: Pago pendiente.'}), 403
+        
+    return jsonify({'ok': True, 'is_admin': False})
+
+# ── Admin Routes ──────────────────────────────────────────────
+@app.route('/mvg-pagos-admin')
+def admin_pagos():
+    return render_template('admin_pagos.html')
+
+@app.route('/api/admin/users', methods=['GET'])
+def get_users():
+    conn = get_db()
+    users = conn.execute("SELECT id, username, has_paid FROM users ORDER BY username ASC").fetchall()
+    conn.close()
+    return jsonify([dict(u) for u in users])
+
+@app.route('/api/admin/toggle-payment', methods=['POST'])
+def toggle_payment():
+    data = request.get_json()
+    user_id = data.get('id')
+    has_paid = 1 if data.get('has_paid') else 0
+    
+    conn = get_db()
+    conn.execute("UPDATE users SET has_paid = ? WHERE id = ?", (has_paid, user_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/users/add', methods=['POST'])
+def add_user():
+    data = request.get_json()
+    username = (data.get('username') or '').strip().upper()
+    if not username:
+        return jsonify({'ok': False, 'error': 'El nombre no puede estar vacío'}), 400
+        
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO users (username, password, has_paid) VALUES (?, ?, ?)", (username, "MVGMVG", 0))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'ok': False, 'error': 'El usuario ya existe'}), 400
+    conn.close()
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/users/delete', methods=['POST'])
+def delete_user():
+    data = request.get_json()
+    user_id = data.get('id')
+    if not user_id:
+        return jsonify({'ok': False, 'error': 'ID no proporcionado'}), 400
+        
+    conn = get_db()
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/users/reset', methods=['POST'])
+def reset_payments():
+    conn = get_db()
+    conn.execute("UPDATE users SET has_paid = 0")
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
 
 # ──────────────────────────────────────────────────────────────
 @app.route('/download/<filename>')

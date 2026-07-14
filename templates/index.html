@@ -16,7 +16,7 @@
 <body>
     <div class="background-decor"></div>
 
-    <!-- STEP 1: Password -->
+    <!-- STEP 1: Login -->
     <div class="screen" id="screen-password">
         <div class="container">
             <header>
@@ -25,10 +25,11 @@
                 <p>Upload your daily Excel and PDF to automatically highlight room numbers.</p>
             </header>
             <div class="password-box">
-                <h3>Enter Access Code</h3>
-                <input type="password" id="password-input" placeholder="Password..." />
-                <button id="password-btn">Unlock App</button>
-                <p id="password-error" style="color: #ff6b6b; font-size: 0.9rem; margin-top: 10px; display: none;">Incorrect password</p>
+                <h3>Iniciar Sesión</h3>
+                <input type="text" id="username-input" placeholder="Usuario (Tu Nombre)" style="margin-bottom: 10px; width: 100%; box-sizing: border-box;" />
+                <input type="password" id="password-input" placeholder="Contraseña..." style="width: 100%; box-sizing: border-box;" />
+                <button id="password-btn" style="margin-top: 15px;">Entrar</button>
+                <p id="password-error" style="color: #ff6b6b; font-size: 0.9rem; margin-top: 10px; display: none;"></p>
             </div>
         </div>
     </div>
