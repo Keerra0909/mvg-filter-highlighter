@@ -133,6 +133,17 @@ document.addEventListener('DOMContentLoaded', () => {
     passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') passwordBtn.click(); });
     usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') passwordInput.focus(); });
 
+    // Logout / Go back to login
+    const logoutBtn = document.getElementById('logout-btn');
+    if(logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('mvg_auth_timestamp');
+            usernameInput.value = '';
+            passwordInput.value = '';
+            showScreen(screenLogin);
+        });
+    }
+
     // Step 2 → Step 3: Lobby selection
     document.querySelectorAll('.lobby-card').forEach(card => {
         card.addEventListener('click', () => {
