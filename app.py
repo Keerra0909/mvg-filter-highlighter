@@ -4,6 +4,7 @@ import re
 import json
 import sqlite3
 import pandas as pd
+from datetime import datetime
 import fitz  # PyMuPDF
 from flask import Flask, request, send_file, render_template, jsonify
 from werkzeug.utils import secure_filename
@@ -1024,6 +1025,13 @@ def init_db():
             has_paid BOOLEAN NOT NULL DEFAULT 0
         )
     ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS login_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            timestamp TEXT NOT NULL
+        )
+    ''')
     
     # Seed initial users (excluding Pancho, Andres G, Paolo)
     initial_users = [
@@ -1058,11 +1066,19 @@ def login():
     if not user:
         return jsonify({'ok': False, 'error': 'Usuario no encontrado.'}), 404
         
-    if user['password'] != password:
+    # Case insensitive password comparison
+    if user['password'].strip().upper() != password.upper():
         return jsonify({'ok': False, 'error': 'Contraseña incorrecta.'}), 401
         
     if not user['has_paid']:
         return jsonify({'ok': False, 'error': 'Acceso bloqueado: Pago pendiente.'}), 403
+        
+    # Record the login
+    conn = get_db()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("INSERT INTO login_logs (username, timestamp) VALUES (?, ?)", (username, now_str))
+    conn.commit()
+    conn.close()
         
     return jsonify({'ok': True, 'is_admin': False})
 
@@ -1077,6 +1093,13 @@ def get_users():
     users = conn.execute("SELECT id, username, password, has_paid FROM users ORDER BY username ASC").fetchall()
     conn.close()
     return jsonify([dict(u) for u in users])
+
+@app.route('/api/admin/logs', methods=['GET'])
+def get_logs():
+    conn = get_db()
+    logs = conn.execute("SELECT username, timestamp FROM login_logs ORDER BY id DESC LIMIT 100").fetchall()
+    conn.close()
+    return jsonify([dict(l) for l in logs])
 
 @app.route('/api/admin/toggle-payment', methods=['POST'])
 def toggle_payment():

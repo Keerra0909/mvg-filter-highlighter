@@ -110,13 +110,53 @@
             font-size: 18px;
             padding: 5px;
         }
+        .tabs {
+            display: flex;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 0;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            background: #0f172a;
+            color: #94a3b8;
+            border: 1px solid #1e293b;
+            border-bottom: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            border-radius: 12px 12px 0 0;
+            transition: all 0.2s;
+            margin: 0 2px;
+        }
+        .tab-btn.active {
+            background: #1e293b;
+            color: #38bdf8;
+            border: none;
+        }
+        .log-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #334155;
+            font-size: 15px;
+        }
+        .log-time {
+            color: #94a3b8;
+        }
     </style>
 </head>
 <body>
     <h1>Dashboard de Pagos 💰</h1>
     <p class="subtitle">Administra los accesos de tus compañeros (150 MXN/mes)</p>
 
-    <div class="dashboard">
+    <div class="tabs">
+        <button id="btn-tab-users" class="tab-btn active" onclick="switchTab('users')">👥 Usuarios</button>
+        <button id="btn-tab-logs" class="tab-btn" onclick="switchTab('logs')">🕵️‍♂️ Historial</button>
+    </div>
+
+    <div class="dashboard" id="tab-users">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #334155; padding-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <div class="add-user-form" style="margin-bottom: 0; border: none; padding: 0; flex: 1; min-width: 250px;">
                 <input type="text" id="new-username" class="add-user-input" placeholder="Nuevo compañero...">
@@ -130,10 +170,46 @@
             <p style="text-align:center; color:#94a3b8;">Cargando usuarios...</p>
         </div>
     </div>
+    
+    <div class="dashboard" id="tab-logs" style="display: none; border-top-left-radius: 0; border-top-right-radius: 0;">
+        <h3 style="margin-top: 0; color: #38bdf8;">Últimos 100 Accesos</h3>
+        <div id="logs-container">
+            <p style="text-align:center; color:#94a3b8;">Cargando historial...</p>
+        </div>
+    </div>
 
     <a href="/" class="back-btn">⬅ Volver a la App</a>
 
     <script>
+        function switchTab(tabName) {
+            document.getElementById('tab-users').style.display = tabName === 'users' ? 'block' : 'none';
+            document.getElementById('tab-logs').style.display = tabName === 'logs' ? 'block' : 'none';
+            document.getElementById('btn-tab-users').className = 'tab-btn ' + (tabName === 'users' ? 'active' : '');
+            document.getElementById('btn-tab-logs').className = 'tab-btn ' + (tabName === 'logs' ? 'active' : '');
+            if (tabName === 'logs') loadLogs();
+        }
+        
+        async function loadLogs() {
+            try {
+                const res = await fetch('/api/admin/logs');
+                const logs = await res.json();
+                const container = document.getElementById('logs-container');
+                container.innerHTML = '';
+                if (logs.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:#94a3b8;">Nadie ha iniciado sesión aún.</p>';
+                    return;
+                }
+                logs.forEach(log => {
+                    const row = document.createElement('div');
+                    row.className = 'log-row';
+                    row.innerHTML = `<strong>👤 ${log.username}</strong> <span class="log-time">🕒 ${log.timestamp}</span>`;
+                    container.appendChild(row);
+                });
+            } catch (err) {
+                document.getElementById('logs-container').innerHTML = '<p style="color:#ef4444; text-align:center;">Error al cargar el historial.</p>';
+            }
+        }
+
         async function loadUsers() {
             try {
                 const res = await fetch('/api/admin/users');
