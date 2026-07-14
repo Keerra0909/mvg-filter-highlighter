@@ -4,7 +4,7 @@ import re
 import json
 import sqlite3
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import fitz  # PyMuPDF
 from flask import Flask, request, send_file, render_template, jsonify
 from werkzeug.utils import secure_filename
@@ -1074,8 +1074,10 @@ def login():
         return jsonify({'ok': False, 'error': 'Acceso bloqueado: Pago pendiente.'}), 403
         
     # Record the login
+    # Record the login (Quintana Roo is UTC-5)
     conn = get_db()
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cancun_time = datetime.utcnow() - timedelta(hours=5)
+    now_str = cancun_time.strftime("%Y-%m-%d %H:%M:%S")
     conn.execute("INSERT INTO login_logs (username, timestamp) VALUES (?, ?)", (username, now_str))
     conn.commit()
     conn.close()
