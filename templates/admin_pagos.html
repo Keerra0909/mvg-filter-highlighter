@@ -148,7 +148,7 @@
                     
                     const nameSpan = document.createElement('span');
                     nameSpan.className = 'user-name';
-                    nameSpan.textContent = user.username;
+                    nameSpan.innerHTML = `<strong>${user.username}</strong> <span style="font-size: 13px; color: #94a3b8; font-weight: normal; margin-left: 10px;">(Clave: ${user.password})</span>`;
                     
                     const actionsDiv = document.createElement('div');
                     actionsDiv.className = 'actions';
@@ -158,6 +158,12 @@
                     btn.textContent = user.has_paid ? '✅ PAGADO' : '❌ DEBE';
                     btn.onclick = () => togglePayment(user.id, !user.has_paid, btn);
                     
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'del-btn';
+                    editBtn.textContent = '✏️';
+                    editBtn.title = 'Editar usuario y clave';
+                    editBtn.onclick = () => editUser(user.id, user.username, user.password);
+                    
                     const delBtn = document.createElement('button');
                     delBtn.className = 'del-btn';
                     delBtn.textContent = '🗑️';
@@ -165,6 +171,7 @@
                     delBtn.onclick = () => deleteUser(user.id, user.username);
                     
                     actionsDiv.appendChild(btn);
+                    actionsDiv.appendChild(editBtn);
                     actionsDiv.appendChild(delBtn);
                     
                     row.appendChild(nameSpan);
@@ -213,6 +220,34 @@
                     loadUsers();
                 } else {
                     alert(data.error || "Error al agregar usuario");
+                }
+            } catch (err) {
+                alert("Error de conexión");
+            }
+        }
+
+        async function editUser(id, oldUsername, oldPassword) {
+            const newUsername = prompt("Modificar Nombre de Usuario:", oldUsername);
+            if (newUsername === null) return;
+            const newPassword = prompt(`Modificar Contraseña para ${newUsername}:`, oldPassword);
+            if (newPassword === null) return;
+            
+            if (!newUsername.trim() || !newPassword.trim()) {
+                alert("Usuario y contraseña no pueden estar vacíos.");
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/admin/users/edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, username: newUsername, password: newPassword })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    loadUsers();
+                } else {
+                    alert(data.error || "Error al editar");
                 }
             } catch (err) {
                 alert("Error de conexión");

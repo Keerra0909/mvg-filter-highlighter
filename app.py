@@ -1074,7 +1074,7 @@ def admin_pagos():
 @app.route('/api/admin/users', methods=['GET'])
 def get_users():
     conn = get_db()
-    users = conn.execute("SELECT id, username, has_paid FROM users ORDER BY username ASC").fetchall()
+    users = conn.execute("SELECT id, username, password, has_paid FROM users ORDER BY username ASC").fetchall()
     conn.close()
     return jsonify([dict(u) for u in users])
 
@@ -1117,6 +1117,26 @@ def delete_user():
     conn = get_db()
     conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
     conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/users/edit', methods=['POST'])
+def edit_user():
+    data = request.get_json()
+    user_id = data.get('id')
+    username = (data.get('username') or '').strip().upper()
+    password = (data.get('password') or '').strip()
+    
+    if not user_id or not username or not password:
+        return jsonify({'ok': False, 'error': 'Faltan datos'}), 400
+        
+    conn = get_db()
+    try:
+        conn.execute("UPDATE users SET username = ?, password = ? WHERE id = ?", (username, password, user_id))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({'ok': False, 'error': 'El nombre de usuario ya existe'}), 400
     conn.close()
     return jsonify({'ok': True})
 
