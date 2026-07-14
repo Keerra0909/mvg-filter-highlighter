@@ -424,16 +424,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         offset_x += 18
                         
                     if is_no_show:
-                        ns_x = base_x + offset_x
-                        if not in_excel:
-                            if room_type_header_x0 is not None and room_type_header_x0 > w[2]:
-                                ns_x = room_type_header_x0
-                            else:
-                                ns_x = base_x + offset_x + 30
-                        else:
-                            offset_x += 18
-                            
-                        page.insert_text(fitz.Point(ns_x, w[3] - 2), "N.S.", fontsize=8, color=(0.95, 0.15, 0.15))
+                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "N.S.", fontsize=8, color=(0.95, 0.15, 0.15))
+                        offset_x += 18
                         if in_excel:
                             no_shows.add(word_text)
                         
