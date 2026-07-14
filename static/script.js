@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.removeItem('mvg_auth_timestamp');
             usernameInput.value = '';
             passwordInput.value = '';
-            showScreen(screenLogin);
+            showScreen(screenPassword);
         });
     }
 
