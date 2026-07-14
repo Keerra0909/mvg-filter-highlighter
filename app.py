@@ -355,7 +355,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                 is_transfer = 'transfer' in wide_line_text.replace(' ', '')
                 is_free = 'free' in line_words
                 
-                strong_red = is_mvg_pdf or is_especiales or is_cortesia or is_travel or is_employee or is_rss or is_agency_direct or is_neteurgt or is_netcysgt or is_uso_casa or is_certmvg or is_free
+                strong_red = is_mvg_pdf or is_especiales or is_cortesia or is_travel or is_employee or is_rss or is_agency_direct or is_neteurgt or is_netcysgt or is_uso_casa or is_certmvg or is_free or is_no_show
                 if lobby in ['nizuc', 'grand'] and is_wow:
                     strong_red = True
                     
@@ -423,7 +423,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "C.O", fontsize=8, color=(0.95, 0.15, 0.15))
                         offset_x += 18
                         
-                    if is_no_show and final_color == 'green':
+                    if is_no_show:
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "N.S.", fontsize=8, color=(0.95, 0.15, 0.15))
                         offset_x += 18
                         no_shows.add(word_text)
@@ -451,10 +451,10 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                             annot2.set_colors(stroke=(1, 0, 0))
                             annot2.update()
                             
-                    # Handle underline for no show
-                    if is_no_show and final_color == 'green':
+                    # Handle highlight for no show text in status row
+                    if is_no_show:
                         for rect in no_show_rects:
-                            annot2 = page.add_underline_annot(rect)
+                            annot2 = page.add_highlight_annot(rect)
                             annot2.set_colors(stroke=(1, 0, 0))
                             annot2.update()
                                 
