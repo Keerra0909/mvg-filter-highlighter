@@ -426,7 +426,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                     if is_no_show:
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "N.S.", fontsize=8, color=(0.95, 0.15, 0.15))
                         offset_x += 18
-                        no_shows.add(word_text)
+                        if in_excel:
+                            no_shows.add(word_text)
                         
                     if (is_neteurgt or is_netcysgt) and not is_to_eu:
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0.2, 0.2, 0.2))
