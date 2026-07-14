@@ -355,7 +355,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                 is_transfer = 'transfer' in wide_line_text.replace(' ', '')
                 is_free = 'free' in line_words
                 
-                strong_red = is_mvg_pdf or is_especiales or is_cortesia or is_travel or is_employee or is_rss or is_agency_direct or is_neteurgt or is_netcysgt or is_uso_casa or is_certmvg or is_free or is_no_show
+                strong_red = is_mvg_pdf or is_especiales or is_cortesia or is_travel or is_employee or is_rss or is_agency_direct or is_neteurgt or is_netcysgt or is_uso_casa or is_certmvg or is_free
                 if lobby in ['nizuc', 'grand'] and is_wow:
                     strong_red = True
                     
@@ -458,6 +458,25 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                             annot2 = page.add_highlight_annot(rect)
                             annot2.set_colors(stroke=red_color)
                             annot2.update()
+                            
+                    # Handle room type highlight for no show when not in excel
+                    if is_no_show and not in_excel:
+                        room_type_rects = []
+                        if room_type_header_x0 is not None:
+                            room_type_words = [w2 for w2 in line_words_raw if abs(w2[0] - room_type_header_x0) < 40]
+                            for rtw in room_type_words:
+                                room_type_rects.append(fitz.Rect(rtw[0], rtw[1], rtw[2], rtw[3]))
+                        
+                        if not room_type_rects:
+                            left_words = [w2 for w2 in line_words_raw if w2[2] < w[0] and len(w2[4].strip()) <= 5]
+                            if left_words:
+                                rtw = max(left_words, key=lambda x: x[2])
+                                room_type_rects.append(fitz.Rect(rtw[0], rtw[1], rtw[2], rtw[3]))
+                                
+                        for rect in room_type_rects:
+                            annot3 = page.add_highlight_annot(rect)
+                            annot3.set_colors(stroke=red_color)
+                            annot3.update()
                                 
                     # Handle underline for transfer
                     if is_transfer:
