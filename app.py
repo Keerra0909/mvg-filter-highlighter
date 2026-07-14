@@ -434,7 +434,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         offset_x += 25
                         
                     is_pitchada = word_text in pitchadas_set
-                    if is_pitchada and final_color != 'none':
+                    if is_pitchada and in_excel:
                         pitchadas_found.add(word_text)
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "PITCHADA", fontsize=8, color=(1.0, 0.5, 0.0))
                         offset_x += 45
