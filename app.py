@@ -957,8 +957,22 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
 def index():
     return render_template('index.html')
 
+def cleanup_old_files():
+    import time
+    folder = app.config['UPLOAD_FOLDER']
+    now = time.time()
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        if os.path.isfile(file_path):
+            if os.stat(file_path).st_mtime < now - 3600:
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
+
 @app.route('/process', methods=['POST'])
 def process_files():
+    cleanup_old_files()
     if 'excel_file' not in request.files or 'pdf_file' not in request.files:
         return jsonify({'error': 'Missing files'}), 400
         
@@ -1198,14 +1212,7 @@ def reset_payments():
 def download_file(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if os.path.exists(file_path):
-        # Read file into memory and delete from disk (Automatic Cleanup)
-        with open(file_path, 'rb') as f:
-            file_data = io.BytesIO(f.read())
-        try:
-            os.remove(file_path)
-        except Exception:
-            pass
-        return send_file(file_data, as_attachment=True, download_name=filename, mimetype='application/pdf')
+        return send_file(file_path, as_attachment=True, download_name=filename, mimetype='application/octet-stream')
     return "File not found", 404
 
 if __name__ == '__main__':
