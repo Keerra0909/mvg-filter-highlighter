@@ -1198,7 +1198,14 @@ def reset_payments():
 def download_file(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if os.path.exists(file_path):
-        return send_file(file_path, as_attachment=True, download_name=filename, mimetype='application/octet-stream')
+        # Read file into memory and delete from disk (Automatic Cleanup)
+        with open(file_path, 'rb') as f:
+            file_data = io.BytesIO(f.read())
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
+        return send_file(file_data, as_attachment=True, download_name=filename, mimetype='application/pdf')
     return "File not found", 404
 
 if __name__ == '__main__':
