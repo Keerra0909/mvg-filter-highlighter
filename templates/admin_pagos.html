@@ -282,7 +282,10 @@
         async function addUser() {
             const input = document.getElementById('new-username');
             const username = input.value.trim();
-            if (!username) return;
+            if (!username) {
+                alert("Por favor escribe el nombre del compañero primero.");
+                return;
+            }
             
             try {
                 const res = await fetch('/api/admin/users/add', {
@@ -365,7 +368,14 @@
             }
         }
 
-        window.onload = loadUsers;
+        window.onload = function() {
+            loadUsers();
+            document.getElementById('new-username').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addUser();
+                }
+            });
+        };
     </script>
 </body>
 </html>

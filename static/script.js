@@ -404,12 +404,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     summaryGrid.style.padding = '';
                     summaryGrid.style.borderRadius = '';
 
-                    const link = document.createElement('a');
-                    link.download = 'Resumen_Cuartos.png';
-                    link.href = canvas.toDataURL('image/png');
-                    
-                    // Direct download
-                    link.click();
+                    canvas.toBlob(function(blob) {
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.download = 'Resumen_Cuartos.png';
+                        link.href = url;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    }, 'image/png');
                 });
             }, 100);
         });

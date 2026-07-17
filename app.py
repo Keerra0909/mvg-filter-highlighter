@@ -36,6 +36,8 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
                 continue
             if t_lobby == 'nizuc' and 'nizuc' not in s_name and 'zmni' not in s_name:
                 continue
+            if t_lobby == 'jamaica' and 'jamaica' not in s_name and 'zcjg' not in s_name:
+                continue
                 
         print(f"Processing sheet: {sheet_name}")
         # 1. Search the first 20 rows to find the actual header row and Room column
@@ -1090,7 +1092,7 @@ def login():
     username = (data.get('username') or '').strip().upper()
     password = (data.get('password') or '').strip()
     
-    if username == 'ADMIN' and password == 'KEERRA2026':
+    if username == 'ADMIN' and password == '7777':
         return jsonify({'ok': True, 'is_admin': True})
         
     conn = get_db()
@@ -1217,4 +1219,4 @@ def download_file(filename):
 
 if __name__ == '__main__':
     # Listen on all interfaces so it can be accessed from the iPad
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5005, debug=True)
