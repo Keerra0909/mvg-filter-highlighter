@@ -1007,6 +1007,10 @@ def process_files():
         import re
         extension_list = re.findall(r'\d+', extensions_raw)
         pitchadas_list = re.findall(r'\d+', pitchadas_raw)
+        
+        # Only keep extensions/pitchadas that are actually in the Excel file (afectos)
+        extension_list = [r for r in extension_list if any(k.startswith(r) for k in rooms.keys())]
+        pitchadas_list = [r for r in pitchadas_list if any(k.startswith(r) for k in rooms.keys())]
             
         # 2. Highlight PDF
         stats = highlight_pdf(pdf_path, rooms, output_pdf_path, lobby, extension_rooms=extension_list, pitchadas_rooms=pitchadas_list)
