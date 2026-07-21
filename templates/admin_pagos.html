@@ -152,8 +152,9 @@
     <p class="subtitle">Administra los accesos de tus compañeros (150 MXN/mes)</p>
 
     <div class="tabs">
-        <button id="btn-tab-users" class="tab-btn active" onclick="switchTab('users')">👥 Usuarios</button>
-        <button id="btn-tab-logs" class="tab-btn" onclick="switchTab('logs')">🕵️‍♂️ Historial</button>
+        <button id="btn-tab-users" class="tab-btn active" onclick="switchTab('users')">&#x1F465; Usuarios</button>
+        <button id="btn-tab-logs" class="tab-btn" onclick="switchTab('logs')">&#x1F575;&#xFE0F;&#x200D;&#x2642;&#xFE0F; Historial</button>
+        <button id="btn-tab-stats" class="tab-btn" onclick="switchTab('stats')">&#x1F4CA; Usos del Mes</button>
     </div>
 
     <div class="dashboard" id="tab-users">
@@ -171,6 +172,14 @@
         </div>
     </div>
     
+    <div class="dashboard" id="tab-stats" style="display: none; border-top-left-radius: 0; border-top-right-radius: 0;">
+        <h3 style="margin-top: 0; color: #38bdf8;">&#x1F4CA; Usos del Mes Actual</h3>
+        <p style="color:#94a3b8; font-size:13px; margin-top:-10px; margin-bottom:15px;">Cada vez que alguien inicia sesión = 1 uso. Así sabes quién realmente aprovecha la app.</p>
+        <div id="stats-container">
+            <p style="text-align:center; color:#94a3b8;">Cargando estadísticas...</p>
+        </div>
+    </div>
+
     <div class="dashboard" id="tab-logs" style="display: none; border-top-left-radius: 0; border-top-right-radius: 0;">
         <h3 style="margin-top: 0; color: #38bdf8;">📊 Historial de Accesos</h3>
         <p style="color:#94a3b8; font-size:13px; margin-top:-10px; margin-bottom:15px;">Cada acceso = un uso real de la app. Da clic en el mes o día para ver el detalle.</p>
@@ -185,9 +194,12 @@
         function switchTab(tabName) {
             document.getElementById('tab-users').style.display = tabName === 'users' ? 'block' : 'none';
             document.getElementById('tab-logs').style.display = tabName === 'logs' ? 'block' : 'none';
+            document.getElementById('tab-stats').style.display = tabName === 'stats' ? 'block' : 'none';
             document.getElementById('btn-tab-users').className = 'tab-btn ' + (tabName === 'users' ? 'active' : '');
             document.getElementById('btn-tab-logs').className = 'tab-btn ' + (tabName === 'logs' ? 'active' : '');
+            document.getElementById('btn-tab-stats').className = 'tab-btn ' + (tabName === 'stats' ? 'active' : '');
             if (tabName === 'logs') loadLogs();
+            if (tabName === 'stats') loadStats();
         }
         
         async function loadLogs() {
@@ -319,6 +331,46 @@
                 
             } catch (err) {
                 document.getElementById('logs-container').innerHTML = '<p style="color:#ef4444; text-align:center;">Error al cargar el historial.</p>';
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/admin/usage-stats');
+                const stats = await res.json();
+                const container = document.getElementById('stats-container');
+                container.innerHTML = '';
+                if (stats.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:#94a3b8;">Nadie ha iniciado sesión este mes.</p>';
+                    return;
+                }
+                
+                // Find max count to scale the bars
+                const maxCount = Math.max(...stats.map(s => s.count));
+                
+                stats.forEach((stat, index) => {
+                    const widthPercent = (stat.count / maxCount) * 100;
+                    // Top 3 get special colors
+                    let barColor = '#0ea5e9'; // Default blue
+                    if (index === 0) barColor = '#f59e0b'; // Gold
+                    else if (index === 1) barColor = '#94a3b8'; // Silver
+                    else if (index === 2) barColor = '#b45309'; // Bronze
+                    
+                    const row = document.createElement('div');
+                    row.style.cssText = 'margin-bottom: 12px;';
+                    row.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:14px;">
+                            <strong style="color:#e2e8f0;">${index === 0 ? '👑 ' : ''}${stat.username}</strong>
+                            <span style="color:#94a3b8; font-weight:bold;">${stat.count} usos</span>
+                        </div>
+                        <div style="width:100%; background:#1e293b; border-radius:4px; height:8px; overflow:hidden;">
+                            <div style="width:${widthPercent}%; background:${barColor}; height:100%; border-radius:4px;"></div>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+            } catch (err) {
+                document.getElementById('stats-container').innerHTML = '<p style="color:#ef4444; text-align:center;">Error al cargar estadísticas.</p>';
             }
         }
 

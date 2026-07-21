@@ -119,6 +119,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 localStorage.setItem('mvg_auth_timestamp', Date.now().toString());
                 showScreen(screenLobby);
+                
+                // Show payment reminder banner if near month end
+                if (data.payment_reminder) {
+                    showPaymentReminder();
+                }
             } else {
                 passwordError.textContent = data.error || 'Credenciales incorrectas';
                 passwordError.style.display = 'block';
@@ -132,6 +137,51 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     passwordInput.addEventListener('keydown', e => { if (e.key === 'Enter') passwordBtn.click(); });
     usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') passwordInput.focus(); });
+
+    // ── Payment Reminder Banner ──
+    function showPaymentReminder() {
+        // Remove any existing banner first
+        const existing = document.getElementById('payment-reminder-banner');
+        if (existing) existing.remove();
+        
+        const banner = document.createElement('div');
+        banner.id = 'payment-reminder-banner';
+        banner.style.cssText = `
+            position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+            background: linear-gradient(90deg, #dc2626, #b91c1c);
+            color: white; text-align: center;
+            padding: 14px 20px;
+            font-weight: bold; font-size: 15px;
+            box-shadow: 0 4px 20px rgba(220,38,38,0.5);
+            display: flex; justify-content: center; align-items: center; gap: 12px;
+            animation: slideDown 0.4s ease;
+        `;
+        
+        // Add animation style
+        if (!document.getElementById('reminder-style')) {
+            const style = document.createElement('style');
+            style.id = 'reminder-style';
+            style.textContent = `
+                @keyframes slideDown { from { transform: translateY(-100%); opacity:0; } to { transform: translateY(0); opacity:1; } }
+                @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
+                #payment-reminder-banner { animation: slideDown 0.4s ease; }
+                #payment-reminder-banner .pulse-icon { animation: pulse 1.5s infinite; }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        banner.innerHTML = `
+            <span class="pulse-icon" style="font-size:20px;">⚠️</span>
+            <span>¡Recuerda pagar tus <strong>150 MXN</strong> antes de que termine el mes para no perder tu acceso!</span>
+            <button onclick="document.getElementById('payment-reminder-banner').remove()" 
+                style="background:rgba(255,255,255,0.2); border:none; color:white; border-radius:6px; 
+                       padding:4px 12px; cursor:pointer; font-weight:bold; margin-left:8px;">✕</button>
+        `;
+        document.body.prepend(banner);
+        
+        // Auto-dismiss after 12 seconds
+        setTimeout(() => { if (banner.parentNode) banner.remove(); }, 12000);
+    }
 
     // Logout / Go back to login
     const logoutHandler = () => {

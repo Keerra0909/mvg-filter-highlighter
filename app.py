@@ -1126,8 +1126,13 @@ def login():
     conn.execute("INSERT INTO login_logs (username, timestamp) VALUES (?, ?)", (username, now_str))
     conn.commit()
     conn.close()
+    
+    # Check if today is 1 day before end of month → show payment reminder
+    import calendar
+    last_day = calendar.monthrange(cancun_time.year, cancun_time.month)[1]
+    payment_reminder = (cancun_time.day >= last_day - 1)  # Last day OR day before
         
-    return jsonify({'ok': True, 'is_admin': False})
+    return jsonify({'ok': True, 'is_admin': False, 'payment_reminder': payment_reminder})
 
 # ── Admin Routes ──────────────────────────────────────────────
 @app.route('/mvg-pagos-admin')
@@ -1147,6 +1152,19 @@ def get_logs():
     logs = conn.execute("SELECT username, timestamp FROM login_logs ORDER BY id DESC LIMIT 2000").fetchall()
     conn.close()
     return jsonify([dict(l) for l in logs])
+
+@app.route('/api/admin/usage-stats', methods=['GET'])
+def get_usage_stats():
+    """Return login count per user for the current month."""
+    conn = get_db()
+    cancun_time = datetime.utcnow() - timedelta(hours=5)
+    month_prefix = cancun_time.strftime("%Y-%m")
+    rows = conn.execute(
+        "SELECT username, COUNT(*) as count FROM login_logs WHERE timestamp LIKE ? GROUP BY username ORDER BY count DESC",
+        (month_prefix + '%',)
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
 
 @app.route('/api/admin/toggle-payment', methods=['POST'])
 def toggle_payment():
