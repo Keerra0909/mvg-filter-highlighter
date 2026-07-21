@@ -1073,16 +1073,21 @@ def init_db():
         )
     ''')
     
-    # Seed initial users (excluding Pancho, Andres G, Paolo)
-    initial_users = [
-        "ADRIAN", "ALEX", "ANA M", "ANDERSON", "ANDRES A", "BONJO", "BRUNO", 
-        "CHRIS", "ERICK", "GALA", "GALAOR", "GONZALO", "ISA", "JOSEFINA", "JP", 
-        "JUANJO JJ", "LEONARDO", "MICHELLE", "MIKE", "MONTSE", "NANCY", "NONO", 
-        "RICARDO", "RICKY", "SEBASTIAN", "SERGIO", "TONY", "TOÑO"
-    ]
+    # Check if table is empty before seeding
+    c.execute("SELECT COUNT(*) FROM users")
+    count = c.fetchone()[0]
     
-    for u in initial_users:
-        c.execute("INSERT OR IGNORE INTO users (username, password, has_paid) VALUES (?, ?, ?)", (u, "MVGMVG", 0))
+    if count == 0:
+        # Seed initial users
+        initial_users = [
+            "ADRIAN", "ALEX", "ANA M", "ANDERSON", "ANDRES A", "BONJO", "BRUNO", 
+            "CHRIS", "ERICK", "GALA", "GALAOR", "GONZALO", "ISA", "JOSEFINA", "JP", 
+            "JUANJO JJ", "LEONARDO", "MICHELLE", "MIKE", "MONTSE", "NANCY", "NONO", 
+            "RICARDO", "RICKY", "SEBASTIAN", "SERGIO", "TONY", "TOÑO"
+        ]
+        
+        for u in initial_users:
+            c.execute("INSERT OR IGNORE INTO users (username, password, has_paid) VALUES (?, ?, ?)", (u, "MVGMVG", 0))
     
     conn.commit()
     conn.close()

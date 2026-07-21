@@ -199,10 +199,45 @@
                     container.innerHTML = '<p style="text-align:center; color:#94a3b8;">Nadie ha iniciado sesión aún.</p>';
                     return;
                 }
+                
+                let currentDay = '';
+                
                 logs.forEach(log => {
+                    const parts = log.timestamp.split(' ');
+                    const day = parts[0];
+                    const time = parts.length > 1 ? parts[1] : '';
+                    
+                    if (day !== currentDay) {
+                        const dayHeader = document.createElement('div');
+                        dayHeader.style.padding = '8px 12px';
+                        dayHeader.style.backgroundColor = '#1e293b';
+                        dayHeader.style.color = '#38bdf8';
+                        dayHeader.style.fontWeight = 'bold';
+                        dayHeader.style.marginTop = currentDay === '' ? '0' : '15px';
+                        dayHeader.style.marginBottom = '5px';
+                        dayHeader.style.borderRadius = '6px';
+                        dayHeader.style.borderLeft = '4px solid #0ea5e9';
+                        
+                        let displayDate = day;
+                        try {
+                            // Append T12:00:00 to avoid timezone shift issues on local dates
+                            const d = new Date(day + 'T12:00:00');
+                            displayDate = d.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                            displayDate = displayDate.charAt(0).toUpperCase() + displayDate.slice(1);
+                        } catch(e) {}
+                        
+                        dayHeader.innerHTML = `📅 ${displayDate}`;
+                        container.appendChild(dayHeader);
+                        currentDay = day;
+                    }
+                    
                     const row = document.createElement('div');
                     row.className = 'log-row';
-                    row.innerHTML = `<strong>👤 ${log.username}</strong> <span class="log-time">🕒 ${log.timestamp}</span>`;
+                    // Slightly indent under the day header
+                    row.style.marginLeft = '15px';
+                    row.style.padding = '8px';
+                    row.style.borderBottom = '1px solid #1e293b';
+                    row.innerHTML = `<strong>👤 ${log.username}</strong> <span class="log-time" style="color: #94a3b8;">🕒 ${time}</span>`;
                     container.appendChild(row);
                 });
             } catch (err) {
