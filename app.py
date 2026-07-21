@@ -1144,7 +1144,7 @@ def get_users():
 @app.route('/api/admin/logs', methods=['GET'])
 def get_logs():
     conn = get_db()
-    logs = conn.execute("SELECT username, timestamp FROM login_logs ORDER BY id DESC LIMIT 100").fetchall()
+    logs = conn.execute("SELECT username, timestamp FROM login_logs ORDER BY id DESC LIMIT 2000").fetchall()
     conn.close()
     return jsonify([dict(l) for l in logs])
 

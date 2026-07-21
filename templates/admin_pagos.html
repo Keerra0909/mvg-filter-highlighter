@@ -172,7 +172,8 @@
     </div>
     
     <div class="dashboard" id="tab-logs" style="display: none; border-top-left-radius: 0; border-top-right-radius: 0;">
-        <h3 style="margin-top: 0; color: #38bdf8;">Últimos 100 Accesos</h3>
+        <h3 style="margin-top: 0; color: #38bdf8;">📊 Historial de Accesos</h3>
+        <p style="color:#94a3b8; font-size:13px; margin-top:-10px; margin-bottom:15px;">Cada acceso = un uso real de la app. Da clic en el mes o día para ver el detalle.</p>
         <div id="logs-container">
             <p style="text-align:center; color:#94a3b8;">Cargando historial...</p>
         </div>
@@ -200,46 +201,122 @@
                     return;
                 }
                 
-                let currentDay = '';
+                // Group by month → day
+                const monthMap = {}; // { 'julio 2026': { '2026-07-21': [ {user, time}, ... ] } }
+                const monthOrder = [];
                 
                 logs.forEach(log => {
                     const parts = log.timestamp.split(' ');
-                    const day = parts[0];
-                    const time = parts.length > 1 ? parts[1] : '';
+                    const day = parts[0];   // e.g. 2026-07-21
+                    const time = parts[1] || '';
                     
-                    if (day !== currentDay) {
-                        const dayHeader = document.createElement('div');
-                        dayHeader.style.padding = '8px 12px';
-                        dayHeader.style.backgroundColor = '#1e293b';
-                        dayHeader.style.color = '#38bdf8';
-                        dayHeader.style.fontWeight = 'bold';
-                        dayHeader.style.marginTop = currentDay === '' ? '0' : '15px';
-                        dayHeader.style.marginBottom = '5px';
-                        dayHeader.style.borderRadius = '6px';
-                        dayHeader.style.borderLeft = '4px solid #0ea5e9';
-                        
-                        let displayDate = day;
-                        try {
-                            // Append T12:00:00 to avoid timezone shift issues on local dates
-                            const d = new Date(day + 'T12:00:00');
-                            displayDate = d.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                            displayDate = displayDate.charAt(0).toUpperCase() + displayDate.slice(1);
-                        } catch(e) {}
-                        
-                        dayHeader.innerHTML = `📅 ${displayDate}`;
-                        container.appendChild(dayHeader);
-                        currentDay = day;
+                    let monthKey = day;
+                    let displayMonth = day;
+                    try {
+                        const d = new Date(day + 'T12:00:00');
+                        const monthName = d.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+                        monthKey = monthName;
+                        displayMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                    } catch(e) {}
+                    
+                    if (!monthMap[monthKey]) {
+                        monthMap[monthKey] = { display: displayMonth, days: {} };
+                        monthOrder.push(monthKey);
+                    }
+                    if (!monthMap[monthKey].days[day]) {
+                        monthMap[monthKey].days[day] = [];
+                    }
+                    monthMap[monthKey].days[day].push({ user: log.username, time });
+                });
+                
+                monthOrder.forEach((monthKey, mIdx) => {
+                    const monthData = monthMap[monthKey];
+                    const days = monthData.days;
+                    const monthTotal = Object.values(days).reduce((sum, arr) => sum + arr.length, 0);
+                    
+                    // Month header (collapsible)
+                    const monthId = 'month-' + mIdx;
+                    const monthHeader = document.createElement('div');
+                    monthHeader.style.cssText = 'padding:12px 15px; background:linear-gradient(90deg,#1e3a5f,#1e293b); border-radius:8px; margin-bottom:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-left:4px solid #0ea5e9; user-select:none;';
+                    monthHeader.innerHTML = `
+                        <span style="color:#38bdf8; font-weight:bold; font-size:15px;">📆 ${monthData.display}</span>
+                        <span style="display:flex; gap:10px; align-items:center;">
+                            <span style="background:#0ea5e9; color:white; border-radius:20px; padding:2px 12px; font-size:13px; font-weight:bold;">${monthTotal} usos</span>
+                            <span class="month-arrow" style="color:#94a3b8; font-size:18px; transition:transform 0.2s;">▾</span>
+                        </span>`;
+                    
+                    const monthBody = document.createElement('div');
+                    monthBody.id = monthId;
+                    // First month expanded, rest collapsed
+                    monthBody.style.display = mIdx === 0 ? 'block' : 'none';
+                    monthBody.style.marginBottom = '15px';
+                    monthBody.style.paddingLeft = '10px';
+                    
+                    if (mIdx !== 0) {
+                        monthHeader.querySelector('.month-arrow').style.transform = 'rotate(-90deg)';
                     }
                     
-                    const row = document.createElement('div');
-                    row.className = 'log-row';
-                    // Slightly indent under the day header
-                    row.style.marginLeft = '15px';
-                    row.style.padding = '8px';
-                    row.style.borderBottom = '1px solid #1e293b';
-                    row.innerHTML = `<strong>👤 ${log.username}</strong> <span class="log-time" style="color: #94a3b8;">🕒 ${time}</span>`;
-                    container.appendChild(row);
+                    monthHeader.addEventListener('click', () => {
+                        const isOpen = monthBody.style.display !== 'none';
+                        monthBody.style.display = isOpen ? 'none' : 'block';
+                        monthHeader.querySelector('.month-arrow').style.transform = isOpen ? 'rotate(-90deg)' : '';
+                    });
+                    
+                    // Sort days newest first
+                    const sortedDays = Object.keys(days).sort().reverse();
+                    
+                    sortedDays.forEach((day, dIdx) => {
+                        const entries = days[day];
+                        let displayDay = day;
+                        try {
+                            const d = new Date(day + 'T12:00:00');
+                            displayDay = d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+                            displayDay = displayDay.charAt(0).toUpperCase() + displayDay.slice(1);
+                        } catch(e) {}
+                        
+                        const dayId = monthId + '-day-' + dIdx;
+                        
+                        // Day header (collapsible)
+                        const dayHeader = document.createElement('div');
+                        dayHeader.style.cssText = 'padding:7px 12px; background:#0f172a; border-radius:6px; margin-top:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-left:3px solid #334155; user-select:none;';
+                        dayHeader.innerHTML = `
+                            <span style="color:#cbd5e1; font-size:13px;">📅 ${displayDay}</span>
+                            <span style="display:flex; gap:8px; align-items:center;">
+                                <span style="background:#334155; color:#94a3b8; border-radius:20px; padding:1px 9px; font-size:12px;">${entries.length} acceso${entries.length !== 1 ? 's' : ''}</span>
+                                <span class="day-arrow" style="color:#64748b; font-size:14px; transition:transform 0.2s;">▾</span>
+                            </span>`;
+                        
+                        const dayBody = document.createElement('div');
+                        dayBody.id = dayId;
+                        // First day of first month expanded
+                        dayBody.style.display = (mIdx === 0 && dIdx === 0) ? 'block' : 'none';
+                        dayBody.style.paddingLeft = '12px';
+                        
+                        if (!(mIdx === 0 && dIdx === 0)) {
+                            dayHeader.querySelector('.day-arrow').style.transform = 'rotate(-90deg)';
+                        }
+                        
+                        dayHeader.addEventListener('click', () => {
+                            const isOpen = dayBody.style.display !== 'none';
+                            dayBody.style.display = isOpen ? 'none' : 'block';
+                            dayHeader.querySelector('.day-arrow').style.transform = isOpen ? 'rotate(-90deg)' : '';
+                        });
+                        
+                        entries.forEach(entry => {
+                            const row = document.createElement('div');
+                            row.style.cssText = 'padding:6px 8px; border-bottom:1px solid #1e293b; display:flex; justify-content:space-between;';
+                            row.innerHTML = `<strong style="color:#e2e8f0;">👤 ${entry.user}</strong><span style="color:#64748b; font-size:13px;">🕒 ${entry.time}</span>`;
+                            dayBody.appendChild(row);
+                        });
+                        
+                        monthBody.appendChild(dayHeader);
+                        monthBody.appendChild(dayBody);
+                    });
+                    
+                    container.appendChild(monthHeader);
+                    container.appendChild(monthBody);
                 });
+                
             } catch (err) {
                 document.getElementById('logs-container').innerHTML = '<p style="color:#ef4444; text-align:center;">Error al cargar el historial.</p>';
             }
