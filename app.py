@@ -82,7 +82,14 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
                         val_str = val_str[:-2]
                     val_str = val_str.replace(',', '')
                     
-                    if val_str.isdigit() and len(val_str) >= 3:
+                    # Normalize room to handle leading zeros (e.g. 0500 -> 500)
+                    try:
+                        val_str = str(int(val_str))
+                    except ValueError:
+                        val_str = val_str.upper()
+                    
+                    # Check if it resembles a room (allow alphanumerics if they were normalized)
+                    if len(val_str) >= 3 and (val_str.isdigit() or val_str.isalnum()):
                         needs_underline = False
                         has_certificado = False
                         has_promo = False
@@ -151,7 +158,12 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
                             val_str = val_str[:-2]
                         val_str = val_str.replace(',', '')
                         
-                        if val_str.isdigit() and 3 <= len(val_str) <= 6:
+                        try:
+                            val_str = str(int(val_str))
+                        except ValueError:
+                            val_str = val_str.upper()
+                        
+                        if len(val_str) >= 3 and (val_str.isdigit() or val_str.isalnum()) and len(val_str) <= 6:
                             if val_str in seen_rooms:
                                 duplicate_rooms.add(val_str)
                             else:
@@ -363,13 +375,19 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                     
                 weak_red = any(c in line_words for c in ['va', 'vc', 'm', 'vd', 'vr'])
                 
-                in_excel = word_text in room_data
-                if in_excel and word_text not in processed_rooms:
-                    processed_rooms.add(word_text)
-                    
-                data = room_data.get(word_text, {'underline': False, 'certificado': False, 'promo': False, 'mvg': False})
+                # Normalize room number to handle leading zeros (0500 == 500)
+                try:
+                    norm_word_text = str(int(word_text))
+                except ValueError:
+                    norm_word_text = word_text.upper()
                 
-                is_extension = word_text in extension_set
+                in_excel = norm_word_text in room_data
+                if in_excel and norm_word_text not in processed_rooms:
+                    processed_rooms.add(norm_word_text)
+                    
+                data = room_data.get(norm_word_text, {'underline': False, 'certificado': False, 'promo': False, 'mvg': False})
+                
+                is_extension = norm_word_text in extension_set
                 has_highlight = in_excel or strong_red or weak_red or is_neteurgt or is_netcysgt or is_to_eu or is_extension
                 
                 final_color = 'none'
@@ -403,8 +421,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                                 annot.set_colors(stroke=highlight_color) # In-between green
                                 
                             final_color = 'green' # Keep logic color as green so C.O and grouping work normally
-                            if word_text not in green_painted_rooms:
-                                green_painted_rooms.add(word_text)
+                            if norm_word_text not in green_painted_rooms:
+                                green_painted_rooms.add(norm_word_text)
                                 total_green += 1
                                 if data['underline']:
                                     total_presentations += 1
@@ -435,9 +453,9 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0.2, 0.2, 0.2))
                         offset_x += 25
                         
-                    is_pitchada = word_text in pitchadas_set
+                    is_pitchada = norm_word_text in pitchadas_set
                     if is_pitchada and in_excel:
-                        pitchadas_found.add(word_text)
+                        pitchadas_found.add(norm_word_text)
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "PITCHADA", fontsize=8, color=(1.0, 0.5, 0.0))
                         offset_x += 45
                         
@@ -1002,15 +1020,30 @@ def process_files():
         if not rooms:
             return jsonify({'error': 'Could not find any room numbers in the Excel file for this lobby.'}), 400
             
-        extensions_raw = request.form.get('extensions_rooms', '')
-        pitchadas_raw = request.form.get('pitchadas_rooms', '')
-        import re
-        extension_list = re.findall(r'\d+', extensions_raw)
-        pitchadas_list = re.findall(r'\d+', pitchadas_raw)
-        
+        pitchadas = request.form.get('pitchadas', '').strip()
+        extensions = request.form.get('extensions', '').strip()
+
+        pitchadas_set = set()
+        if pitchadas:
+            for p in pitchadas.split(','):
+                p = p.strip()
+                try:
+                    pitchadas_set.add(str(int(p)))
+                except ValueError:
+                    pitchadas_set.add(p.upper())
+
+        extension_set = set()
+        if extensions:
+            for e in extensions.split(','):
+                e = e.strip()
+                try:
+                    extension_set.add(str(int(e)))
+                except ValueError:
+                    extension_set.add(e.upper())
+
         # Only keep extensions/pitchadas that are actually in the Excel file (afectos)
-        extension_list = [r for r in extension_list if any(k.startswith(r) for k in rooms.keys())]
-        pitchadas_list = [r for r in pitchadas_list if any(k.startswith(r) for k in rooms.keys())]
+        extension_list = [r for r in extension_set if r in rooms]
+        pitchadas_list = [r for r in pitchadas_set if r in rooms]
             
         # 2. Highlight PDF
         stats = highlight_pdf(pdf_path, rooms, output_pdf_path, lobby, extension_rooms=extension_list, pitchadas_rooms=pitchadas_list)
