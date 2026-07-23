@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (authTimestamp && (Date.now() - parseInt(authTimestamp) < TEN_MINUTES)) {
         // Session is valid. Extend it and skip password screen.
         localStorage.setItem('mvg_auth_timestamp', Date.now().toString());
+        applyZonePermissions();
         showScreen(screenLobby);
     } else {
         // Expired or no session
@@ -118,6 +119,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 localStorage.setItem('mvg_auth_timestamp', Date.now().toString());
+                localStorage.setItem('mvg_allowed_zones', data.allowed_zones || 'moon,hotelera,caribe');
+                applyZonePermissions();
                 showScreen(screenLobby);
                 
                 // Show payment reminder banner if near month end
@@ -470,3 +473,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 });
+
+
+function applyZonePermissions() {
+    const allowed = (localStorage.getItem('mvg_allowed_zones') || 'moon,hotelera,caribe').toLowerCase();
+    
+    const zoneMoon = document.getElementById('section-zona-moon');
+    const zoneHotelera = document.getElementById('section-zona-hotelera');
+    const zoneCaribe = document.getElementById('section-zona-caribe');
+    
+    if (zoneMoon) zoneMoon.style.display = allowed.includes('moon') ? 'block' : 'none';
+    if (zoneHotelera) zoneHotelera.style.display = allowed.includes('hotelera') ? 'block' : 'none';
+    if (zoneCaribe) zoneCaribe.style.display = allowed.includes('caribe') ? 'block' : 'none';
+}

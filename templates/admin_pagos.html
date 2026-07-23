@@ -148,6 +148,34 @@
     </style>
 </head>
 <body>
+    <!-- Edit User Modal -->
+    <div id="edit-user-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: #1e293b; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); box-sizing: border-box;">
+            <h3 style="margin-top: 0; color: #38bdf8;">Editar Compañero</h3>
+            <input type="hidden" id="edit-user-id">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: #94a3b8; font-size: 14px;">Nombre:</label>
+                <input type="text" id="edit-username" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: #94a3b8; font-size: 14px;">Contraseña:</label>
+                <input type="text" id="edit-password" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; color: #94a3b8; font-size: 14px;">Zonas Permitidas:</label>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <label><input type="checkbox" id="edit-zone-moon"> Moon</label>
+                    <label><input type="checkbox" id="edit-zone-hotelera"> Hotelera</label>
+                    <label><input type="checkbox" id="edit-zone-caribe"> Caribe</label>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button onclick="document.getElementById('edit-user-modal').style.display='none'" style="background: transparent; border: 1px solid #475569; color: #cbd5e1; padding: 8px 15px; border-radius: 6px; cursor: pointer;">Cancelar</button>
+                <button onclick="saveEditUser()" style="background: #3b82f6; border: none; color: white; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold;">Guardar</button>
+            </div>
+        </div>
+    </div>
+
     <h1>Dashboard de Pagos 💰</h1>
     <p class="subtitle">Administra los accesos de tus compañeros (150 MXN/mes)</p>
 
@@ -160,8 +188,15 @@
     <div class="dashboard" id="tab-users">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #334155; padding-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <div class="add-user-form" style="margin-bottom: 0; border: none; padding: 0; flex: 1; min-width: 250px;">
-                <input type="text" id="new-username" class="add-user-input" placeholder="Nuevo compañero...">
-                <button class="add-user-btn" onclick="addUser()">Agregar</button>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="new-username" class="add-user-input" placeholder="Nuevo compañero...">
+                    <button class="add-user-btn" onclick="addUser()">Agregar</button>
+                </div>
+                <div style="margin-top: 10px; font-size: 13px; color: #cbd5e1; display: flex; gap: 15px; flex-wrap: wrap;">
+                    <label><input type="checkbox" id="add-zone-moon" checked> Moon</label>
+                    <label><input type="checkbox" id="add-zone-hotelera" checked> Hotelera</label>
+                    <label><input type="checkbox" id="add-zone-caribe" checked> Caribe</label>
+                </div>
             </div>
             <button onclick="resetMonth()" style="background-color: #f59e0b; color: white; border: none; border-radius: 8px; padding: 10px 15px; cursor: pointer; font-weight: bold; white-space: nowrap;">⚠️ Iniciar Nuevo Mes</button>
         </div>
@@ -388,7 +423,7 @@
                     
                     const nameSpan = document.createElement('span');
                     nameSpan.className = 'user-name';
-                    nameSpan.innerHTML = `<strong>${user.username}</strong> <span style="font-size: 13px; color: #94a3b8; font-weight: normal; margin-left: 10px;">(Clave: ${user.password})</span>`;
+                    nameSpan.innerHTML = `<strong>${user.username}</strong> <span style="font-size: 13px; color: #94a3b8; font-weight: normal; margin-left: 10px;">(Clave: ${user.password}) [Zonas: ${user.allowed_zones}]</span>`;
                     
                     const actionsDiv = document.createElement('div');
                     actionsDiv.className = 'actions';
@@ -402,7 +437,7 @@
                     editBtn.className = 'del-btn';
                     editBtn.textContent = '✏️';
                     editBtn.title = 'Editar usuario y clave';
-                    editBtn.onclick = () => editUser(user.id, user.username, user.password);
+                    editBtn.onclick = () => editUser(user.id, user.username, user.password, user.allowed_zones);
                     
                     const delBtn = document.createElement('button');
                     delBtn.className = 'del-btn';
@@ -455,7 +490,7 @@
                 const res = await fetch('/api/admin/users/add', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
+                    body: JSON.stringify({ username, allowed_zones: (document.getElementById('add-zone-moon').checked ? 'moon,' : '') + (document.getElementById('add-zone-hotelera').checked ? 'hotelera,' : '') + (document.getElementById('add-zone-caribe').checked ? 'caribe,' : '') })
                 });
                 const data = await res.json();
                 if (data.ok) {
@@ -469,25 +504,44 @@
             }
         }
 
-        async function editUser(id, oldUsername, oldPassword) {
-            const newUsername = prompt("Modificar Nombre de Usuario:", oldUsername);
-            if (newUsername === null) return;
-            const newPassword = prompt(`Modificar Contraseña para ${newUsername}:`, oldPassword);
-            if (newPassword === null) return;
+        function editUser(id, oldUsername, oldPassword, oldZones) {
+            document.getElementById('edit-user-id').value = id;
+            document.getElementById('edit-username').value = oldUsername;
+            document.getElementById('edit-password').value = oldPassword;
             
-            if (!newUsername.trim() || !newPassword.trim()) {
+            const zones = oldZones ? oldZones.toLowerCase() : 'moon,hotelera,caribe';
+            document.getElementById('edit-zone-moon').checked = zones.includes('moon');
+            document.getElementById('edit-zone-hotelera').checked = zones.includes('hotelera');
+            document.getElementById('edit-zone-caribe').checked = zones.includes('caribe');
+            
+            document.getElementById('edit-user-modal').style.display = 'flex';
+        }
+        
+        async function saveEditUser() {
+            const id = document.getElementById('edit-user-id').value;
+            const username = document.getElementById('edit-username').value.trim();
+            const password = document.getElementById('edit-password').value.trim();
+            
+            if (!username || !password) {
                 alert("Usuario y contraseña no pueden estar vacíos.");
                 return;
             }
+            
+            let zonesArr = [];
+            if (document.getElementById('edit-zone-moon').checked) zonesArr.push('moon');
+            if (document.getElementById('edit-zone-hotelera').checked) zonesArr.push('hotelera');
+            if (document.getElementById('edit-zone-caribe').checked) zonesArr.push('caribe');
+            const allowed_zones = zonesArr.join(',');
             
             try {
                 const res = await fetch('/api/admin/users/edit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id, username: newUsername, password: newPassword })
+                    body: JSON.stringify({ id, username, password, allowed_zones })
                 });
                 const data = await res.json();
                 if (data.ok) {
+                    document.getElementById('edit-user-modal').style.display = 'none';
                     loadUsers();
                 } else {
                     alert(data.error || "Error al editar");

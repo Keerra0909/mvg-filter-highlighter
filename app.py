@@ -48,29 +48,35 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
         last_name_col_idx = None
         first_name_col_idx = None
         full_name_col_idx = None
+        price_col_idx = None
+        nights_col_idx = None
         
         for idx, row in df.head(20).iterrows():
             for col_idx, val in row.items():
                 val_str = str(val).lower()
-                if 'roomnum' in val_str or 'room' in val_str:
+                if ('roomnum' in val_str or 'room' in val_str) and room_col_idx is None:
                     room_col_idx = col_idx
-                if 'attendance' in val_str or 'presentation' in val_str:
+                if ('attendance' in val_str or 'presentation' in val_str) and attendance_col_idx is None:
                     attendance_col_idx = col_idx
-                if 'reason' in val_str:
+                if 'reason' in val_str and reason_col_idx is None:
                     reason_col_idx = col_idx
-                if 'lasname' in val_str or 'lastname' in val_str:
+                if ('lasname' in val_str or 'lastname' in val_str) and last_name_col_idx is None:
                     last_name_col_idx = col_idx
-                if 'firstname' in val_str:
+                if 'firstname' in val_str and first_name_col_idx is None:
                     first_name_col_idx = col_idx
-                if 'full name' in val_str or 'fullname' in val_str:
+                if ('full name' in val_str or 'fullname' in val_str) and full_name_col_idx is None:
                     full_name_col_idx = col_idx
+                if 'price' in val_str and price_col_idx is None:
+                    price_col_idx = col_idx
+                if ('nights' in val_str or 'noches' in val_str) and nights_col_idx is None:
+                    nights_col_idx = col_idx
                     
             if room_col_idx is not None:
                 header_row_idx = idx
                 break
                 
         if room_col_idx is not None:
-            print(f"Found room col: {room_col_idx}, attendance col: {attendance_col_idx}, reason col: {reason_col_idx} starting from row {header_row_idx + 1}")
+            print(f"Found room col: {room_col_idx}, attendance col: {attendance_col_idx}, reason col: {reason_col_idx}, price col: {price_col_idx}, nights col: {nights_col_idx} starting from row {header_row_idx + 1}")
             # Extract values starting from the row after the header
             for idx_row in range(header_row_idx + 1, len(df)):
                 val = df.iloc[idx_row, room_col_idx]
@@ -82,14 +88,7 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
                         val_str = val_str[:-2]
                     val_str = val_str.replace(',', '')
                     
-                    # Normalize room to handle leading zeros (e.g. 0500 -> 500)
-                    try:
-                        val_str = str(int(val_str))
-                    except ValueError:
-                        val_str = val_str.upper()
-                    
-                    # Check if it resembles a room (allow alphanumerics if they were normalized)
-                    if len(val_str) >= 3 and (val_str.isdigit() or val_str.isalnum()):
+                    if val_str.isdigit() and len(val_str) >= 3:
                         needs_underline = False
                         has_certificado = False
                         has_promo = False
@@ -126,7 +125,7 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
                             seen_rooms.add(val_str)
                             
                         if val_str not in room_data:
-                            room_data[val_str] = {'underline': False, 'certificado': False, 'promo': False, 'mvg': False, 'name_tokens': set()}
+                            room_data[val_str] = {'underline': False, 'certificado': False, 'promo': False, 'mvg': False, 'name_tokens': set(), 'price': ''}
                             
                             name_text = ""
                             if last_name_col_idx is not None:
@@ -145,6 +144,40 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
                         if has_certificado: room_data[val_str]['certificado'] = True
                         if has_promo: room_data[val_str]['promo'] = True
                         if has_mvg: room_data[val_str]['mvg'] = True
+                        
+                        print(f"CHECKING PRICE: idx_row={idx_row}, val_str={val_str}, price_col_idx={price_col_idx}")
+                        
+                        if price_col_idx is not None:
+                            price_val = df.iloc[idx_row, price_col_idx]
+                            print(f"DEBUG_PRICE: idx_row={idx_row} val_str={val_str} price_val={repr(price_val)}")
+                            
+                            nights_val = 1
+                            if nights_col_idx is not None:
+                                try:
+                                    n_val = df.iloc[idx_row, nights_col_idx]
+                                    if pd.notna(n_val):
+                                        nights_val = float(str(n_val).strip())
+                                except:
+                                    pass
+
+                            if pd.notna(price_val):
+                                price_str = str(price_val).strip()
+                                print(f"Row {idx_row} {val_str}: price_val={repr(price_val)}, nights={nights_val}")
+                                try:
+                                    # Extract just the numbers for math
+                                    clean_price = float(re.sub(r'[^0-9.]', '', price_str))
+                                    total_paid = clean_price * nights_val
+                                    if total_paid > 0:
+                                        # Format back as a clean string without decimals if it's a whole number, with commas
+                                        room_data[val_str]['price'] = f"${int(total_paid):,}"
+                                        print(f"Extracted price for {val_str}: {price_str} -> {room_data[val_str]['price']}")
+                                except Exception as e:
+                                    print(f"Math fallback for {val_str}: {e}")
+                                    # Fallback if math fails
+                                    price_str = price_str.replace(' USD', '').replace('.00', '').replace(' ', '')
+                                    if price_str and price_str != '$0' and price_str != '0':
+                                        room_data[val_str]['price'] = price_str
+                                        print(f"Extracted price (fallback) for {val_str}: {price_str}")
                 except:
                     pass
         else:
@@ -158,12 +191,7 @@ def extract_rooms_from_excel(excel_path, target_lobby=None):
                             val_str = val_str[:-2]
                         val_str = val_str.replace(',', '')
                         
-                        try:
-                            val_str = str(int(val_str))
-                        except ValueError:
-                            val_str = val_str.upper()
-                        
-                        if len(val_str) >= 3 and (val_str.isdigit() or val_str.isalnum()) and len(val_str) <= 6:
+                        if val_str.isdigit() and 3 <= len(val_str) <= 6:
                             if val_str in seen_rooms:
                                 duplicate_rooms.add(val_str)
                             else:
@@ -321,7 +349,7 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                 wide_line_words = [w2[4].lower() for w2 in words if -5 <= (w2[1] - w[1]) < (next_y - w[1] - 2)]
                 wide_line_text = " ".join(wide_line_words)
                 
-                is_mvg_pdf = ('mvg' in wide_line_text and 'moon' in wide_line_text and 'vacation' in wide_line_text) or ('main' in wide_line_text and 'moon' in wide_line_text)
+                is_mvg_pdf = ('mvg' in wide_line_text and 'moon' in wide_line_text and 'vacation' in wide_line_text) or ('main' in wide_line_text and 'moon' in wide_line_text) or ('mvg' in wide_line_text and 'main' in wide_line_text)
                 is_especiales = 'especial' in wide_line_text
                 is_cortesia = 'cortesia' in wide_line_text and 'palace' in wide_line_text
                 is_travel = 'travel' in wide_line_text and 'agent' in wide_line_text
@@ -375,19 +403,13 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                     
                 weak_red = any(c in line_words for c in ['va', 'vc', 'm', 'vd', 'vr'])
                 
-                # Normalize room number to handle leading zeros (0500 == 500)
-                try:
-                    norm_word_text = str(int(word_text))
-                except ValueError:
-                    norm_word_text = word_text.upper()
-                
-                in_excel = norm_word_text in room_data
-                if in_excel and norm_word_text not in processed_rooms:
-                    processed_rooms.add(norm_word_text)
+                in_excel = word_text in room_data
+                if in_excel and word_text not in processed_rooms:
+                    processed_rooms.add(word_text)
                     
-                data = room_data.get(norm_word_text, {'underline': False, 'certificado': False, 'promo': False, 'mvg': False})
+                data = room_data.get(word_text, {'underline': False, 'certificado': False, 'promo': False, 'mvg': False})
                 
-                is_extension = norm_word_text in extension_set
+                is_extension = word_text in extension_set
                 has_highlight = in_excel or strong_red or weak_red or is_neteurgt or is_netcysgt or is_to_eu or is_extension
                 
                 final_color = 'none'
@@ -421,8 +443,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                                 annot.set_colors(stroke=highlight_color) # In-between green
                                 
                             final_color = 'green' # Keep logic color as green so C.O and grouping work normally
-                            if norm_word_text not in green_painted_rooms:
-                                green_painted_rooms.add(norm_word_text)
+                            if word_text not in green_painted_rooms:
+                                green_painted_rooms.add(word_text)
                                 total_green += 1
                                 if data['underline']:
                                     total_presentations += 1
@@ -453,9 +475,9 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "TO EU", fontsize=8, color=(0.2, 0.2, 0.2))
                         offset_x += 25
                         
-                    is_pitchada = norm_word_text in pitchadas_set
+                    is_pitchada = word_text in pitchadas_set
                     if is_pitchada and in_excel:
-                        pitchadas_found.add(norm_word_text)
+                        pitchadas_found.add(word_text)
                         page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), "PITCHADA", fontsize=8, color=(1.0, 0.5, 0.0))
                         offset_x += 45
                         
@@ -463,6 +485,14 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                         pitchada_underline = page.add_underline_annot(room_rect)
                         pitchada_underline.set_colors(stroke=(1.0, 0.5, 0.0)) # Orange
                         pitchada_underline.update()
+                        
+                    # Add subtle price tag if it exists in the Excel
+                    price = data.get('price', '')
+                    print(f"Room {word_text}: final_color={final_color}, price='{price}', base_x={base_x}, drawing at {base_x + offset_x}")
+                    if price and final_color == 'green':
+                        # Subtle grey text, small font
+                        page.insert_text(fitz.Point(base_x + offset_x, w[3] - 2), f"({price})", fontsize=7, color=(0.4, 0.4, 0.4))
+                        offset_x += 30
 
                     # Handle underline for checked out
                     if is_checked_out and final_color == 'green':
@@ -528,7 +558,8 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                                 
                         if type_word is None:
                             # Fallback: Find the word immediately to the left of the room number
-                            left_words = [w2 for w2 in words if abs(w2[1] - w[1]) < 5 and w2[2] < w[0]]
+                            line_words_raw = [w2 for w2 in words if abs(w2[1] - w[1]) < 10]
+                            left_words = [w2 for w2 in line_words_raw if w2[2] < w[0] and len(w2[4].strip()) <= 5]
                             if left_words:
                                 left_words.sort(key=lambda x: x[2], reverse=True)
                                 type_word = left_words[0]
@@ -574,13 +605,16 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                             # Place N.M. at the far right end of the full row (after Language col)
                             full_row_words = [w2 for w2 in words if abs(w2[1] - w[1]) < 15]
                             nm_x = max(w2[2] for w2 in full_row_words) + 6 if full_row_words else m_word[2] + 12
-                            page.insert_text(fitz.Point(nm_x, m_word[3] - 2), "N.M.", fontsize=8, color=(0.95, 0.15, 0.15))
+                            
+                            # Ensure we don't overlap with C.O, Kids, or Price by taking the max of nm_x and our current accumulated base_x + offset_x
+                            safe_x = max(nm_x, base_x + offset_x)
+                            page.insert_text(fitz.Point(safe_x, m_word[3] - 2), "N.M.", fontsize=8, color=(0.95, 0.15, 0.15))
+                            offset_x = (safe_x - base_x) + 25
                             
                 # Extract membership info for bracket linking
                 membership_text = ""
                 membership_right_edge = None
                 if membership_x0 is not None:
-                    import re
                     # Strict left boundary: start AT membership_x0 (never reach into Grupo column)
                     # Strict right boundary: stop before Room Type header
                     mem_left = membership_x0
@@ -609,7 +643,6 @@ def highlight_pdf(pdf_path, room_data, output_path, lobby='sunrise', extension_r
                 grupo_key = ""  # numeric-only key for grouping
                 grupo_right_edge = None
                 if grupo_x0 is not None:
-                    import re
                     # Stop Grupo extraction before Membership column or Room Type column starts
                     grupo_max_x = grupo_x0 + 120
                     if membership_x0 and membership_x0 > grupo_x0:
@@ -1020,30 +1053,14 @@ def process_files():
         if not rooms:
             return jsonify({'error': 'Could not find any room numbers in the Excel file for this lobby.'}), 400
             
-        pitchadas = request.form.get('pitchadas', '').strip()
-        extensions = request.form.get('extensions', '').strip()
-
-        pitchadas_set = set()
-        if pitchadas:
-            for p in pitchadas.split(','):
-                p = p.strip()
-                try:
-                    pitchadas_set.add(str(int(p)))
-                except ValueError:
-                    pitchadas_set.add(p.upper())
-
-        extension_set = set()
-        if extensions:
-            for e in extensions.split(','):
-                e = e.strip()
-                try:
-                    extension_set.add(str(int(e)))
-                except ValueError:
-                    extension_set.add(e.upper())
-
+        extensions_raw = request.form.get('extensions_rooms', '')
+        pitchadas_raw = request.form.get('pitchadas_rooms', '')
+        extension_list = re.findall(r'\d+', extensions_raw)
+        pitchadas_list = re.findall(r'\d+', pitchadas_raw)
+        
         # Only keep extensions/pitchadas that are actually in the Excel file (afectos)
-        extension_list = [r for r in extension_set if r in rooms]
-        pitchadas_list = [r for r in pitchadas_set if r in rooms]
+        extension_list = [r for r in extension_list if any(k.startswith(r) for k in rooms.keys())]
+        pitchadas_list = [r for r in pitchadas_list if any(k.startswith(r) for k in rooms.keys())]
             
         # 2. Highlight PDF
         stats = highlight_pdf(pdf_path, rooms, output_pdf_path, lobby, extension_rooms=extension_list, pitchadas_rooms=pitchadas_list)
@@ -1095,7 +1112,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            has_paid BOOLEAN NOT NULL DEFAULT 0
+            has_paid BOOLEAN NOT NULL DEFAULT 0,
+            allowed_zones TEXT DEFAULT 'moon,hotelera,caribe'
         )
     ''')
     c.execute('''
@@ -1165,7 +1183,7 @@ def login():
     last_day = calendar.monthrange(cancun_time.year, cancun_time.month)[1]
     payment_reminder = (cancun_time.day >= last_day - 1)  # Last day OR day before
         
-    return jsonify({'ok': True, 'is_admin': False, 'payment_reminder': payment_reminder})
+    return jsonify({'ok': True, 'is_admin': False, 'payment_reminder': payment_reminder, 'allowed_zones': user['allowed_zones']})
 
 # ── Admin Routes ──────────────────────────────────────────────
 @app.route('/mvg-pagos-admin')
@@ -1175,7 +1193,7 @@ def admin_pagos():
 @app.route('/api/admin/users', methods=['GET'])
 def get_users():
     conn = get_db()
-    users = conn.execute("SELECT id, username, password, has_paid FROM users ORDER BY username ASC").fetchall()
+    users = conn.execute("SELECT id, username, password, has_paid, allowed_zones FROM users ORDER BY username ASC").fetchall()
     conn.close()
     return jsonify([dict(u) for u in users])
 
@@ -1218,9 +1236,11 @@ def add_user():
     if not username:
         return jsonify({'ok': False, 'error': 'El nombre no puede estar vacío'}), 400
         
+    allowed_zones = data.get('allowed_zones', 'moon,hotelera,caribe')
+        
     conn = get_db()
     try:
-        conn.execute("INSERT INTO users (username, password, has_paid) VALUES (?, ?, ?)", (username, "MVGMVG", 0))
+        conn.execute("INSERT INTO users (username, password, has_paid, allowed_zones) VALUES (?, ?, ?, ?)", (username, "MVGMVG", 0, allowed_zones))
         conn.commit()
     except sqlite3.IntegrityError:
         conn.close()
@@ -1251,9 +1271,11 @@ def edit_user():
     if not user_id or not username or not password:
         return jsonify({'ok': False, 'error': 'Faltan datos'}), 400
         
+    allowed_zones = data.get('allowed_zones', 'moon,hotelera,caribe')
+        
     conn = get_db()
     try:
-        conn.execute("UPDATE users SET username = ?, password = ? WHERE id = ?", (username, password, user_id))
+        conn.execute("UPDATE users SET username = ?, password = ?, allowed_zones = ? WHERE id = ?", (username, password, allowed_zones, user_id))
         conn.commit()
     except sqlite3.IntegrityError:
         conn.close()

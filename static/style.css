@@ -270,6 +270,18 @@ button[type="submit"]:not(:disabled):hover {
 .lobby-card.nizuc   .lobby-name { color: #22d3ee; }
 .lobby-card.sunrise .lobby-name { color: #f43f5e; }
 .lobby-card.grand   .lobby-name { color: #eab308; }
+.lobby-card.jamaica { border-color: #4ade80; box-shadow: 0 0 20px rgba(74,222,128,0.18); }
+.lobby-card.sun-palace { border-color: #f97316; box-shadow: 0 0 20px rgba(249,115,22,0.18); }
+.lobby-card.beach-palace { border-color: #3b82f6; box-shadow: 0 0 20px rgba(59,130,246,0.18); }
+.lobby-card.le-blanc { border-color: #cbd5e1; box-shadow: 0 0 20px rgba(203,213,225,0.18); }
+.lobby-card.jamaica:hover { box-shadow: 0 0 38px rgba(74,222,128,0.45); }
+.lobby-card.sun-palace:hover { box-shadow: 0 0 38px rgba(249,115,22,0.45); }
+.lobby-card.beach-palace:hover { box-shadow: 0 0 38px rgba(59,130,246,0.45); }
+.lobby-card.le-blanc:hover { box-shadow: 0 0 38px rgba(203,213,225,0.45); }
+.lobby-card.jamaica .lobby-name { color: #4ade80; }
+.lobby-card.sun-palace .lobby-name { color: #f97316; }
+.lobby-card.beach-palace .lobby-name { color: #3b82f6; }
+.lobby-card.le-blanc .lobby-name { color: #cbd5e1; }
 
 .lobby-modal-backdrop {
     position: absolute;
@@ -322,6 +334,18 @@ button[type="submit"]:not(:disabled):hover {
 .lobby-card.nizuc   .lobby-name { color: #22d3ee; }
 .lobby-card.sunrise .lobby-name { color: #f43f5e; }
 .lobby-card.grand   .lobby-name { color: #eab308; }
+.lobby-card.jamaica { border-color: #4ade80; box-shadow: 0 0 20px rgba(74,222,128,0.2); }
+.lobby-card.sun-palace { border-color: #f97316; box-shadow: 0 0 20px rgba(249,115,22,0.2); }
+.lobby-card.beach-palace { border-color: #3b82f6; box-shadow: 0 0 20px rgba(59,130,246,0.2); }
+.lobby-card.le-blanc { border-color: #cbd5e1; box-shadow: 0 0 20px rgba(203,213,225,0.2); }
+.lobby-card.jamaica:hover { box-shadow: 0 0 35px rgba(74,222,128,0.4); }
+.lobby-card.sun-palace:hover { box-shadow: 0 0 35px rgba(249,115,22,0.4); }
+.lobby-card.beach-palace:hover { box-shadow: 0 0 35px rgba(59,130,246,0.4); }
+.lobby-card.le-blanc:hover { box-shadow: 0 0 35px rgba(203,213,225,0.4); }
+.lobby-card.jamaica .lobby-name { color: #4ade80; }
+.lobby-card.sun-palace .lobby-name { color: #f97316; }
+.lobby-card.beach-palace .lobby-name { color: #3b82f6; }
+.lobby-card.le-blanc .lobby-name { color: #cbd5e1; }
 
 /* ── Lobby Badge ── */
 #lobby-badge {
